@@ -39,6 +39,12 @@ struct Args {
     ///       or if you convert the comments into RDF triples.
     #[arg(long)]
     diff_optimized: bool,
+    /// Whether to cleanup/unify empty lines used as dividers.
+    /// This ensures that there is exactly one empty line
+    /// before and after each subject,
+    /// and that there is none anywhere else.
+    #[arg(long)]
+    cleanup_dividing_empty_lines: bool,
     /// Whether to force-write the output,
     /// even if potential issues with the formatting have been detected.
     #[arg(long)]
@@ -55,6 +61,7 @@ impl From<&Args> for FormatOptions {
                 sort_terms: true,
                 new_lines_for_easy_diff: true,
                 single_object_on_new_line: false,
+                cleanup_dividing_empty_lines: args.cleanup_dividing_empty_lines,
                 force,
             }
         } else {

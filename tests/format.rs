@@ -12,6 +12,7 @@ fn fmt_opts_inverted() -> FormatOptions {
         sort_terms: true,
         new_lines_for_easy_diff: true,
         single_object_on_new_line: true,
+        cleanup_dividing_empty_lines: true,
         force: true,
     }
 }

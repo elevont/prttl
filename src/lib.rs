@@ -27,6 +27,11 @@ pub struct FormatOptions {
     /// (within one subject-predicate pair) onto a new line,
     /// or to keep it on the same line as the predicate.
     pub single_object_on_new_line: bool,
+    /// Whether to cleanup/unify empty lines used as dividers.
+    /// This ensures that there is exactly one empty line
+    /// before and after each subject,
+    /// and that there is none anywhere else.
+    pub cleanup_dividing_empty_lines: bool,
     /// Whether to force-write the output,
     /// even if potential issues with the formatting have been detected.
     pub force: bool,
@@ -39,6 +44,7 @@ impl Default for FormatOptions {
             sort_terms: false,
             new_lines_for_easy_diff: false,
             single_object_on_new_line: false,
+            cleanup_dividing_empty_lines: false,
             force: false,
         }
     }
