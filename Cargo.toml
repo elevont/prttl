@@ -1,7 +1,6 @@
 [package]
 authors = ["Tpt <thomas@pellissier-tanon.fr>"]
 description = "Auto-formatter for RDF Turtle"
-build = "build.rs"
 edition = "2021"
 keywords = ["Turtle"]
 license = "Apache-2.0"
