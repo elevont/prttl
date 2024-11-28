@@ -57,7 +57,8 @@ impl Default for FormatOptions {
 }
 
 impl FormatOptions {
-    pub fn includes_sorting(&self) -> bool {
+    #[must_use]
+    pub const fn includes_sorting(&self) -> bool {
         self.sort_terms
     }
 }
@@ -488,24 +489,23 @@ without forced writing (--force)"
                     |n| n.child_by_field_name("predicate"),
                 )?;
                 for child in children {
-                    match child.kind() {
-                        "comment" => comments.push(child),
-                        _ => {
-                            let new_line = if is_first_predicate_objects {
-                                is_first_predicate_objects = false;
-                                self.options.new_lines_for_easy_diff
-                            } else {
-                                write!(self.output, " ;")?;
-                                true
-                            } && self.options.new_lines_for_easy_diff;
-                            if new_line {
-                                self.fmt_comments(comments.drain(0..), true)?;
-                                self.new_indented_line(indent_level + 1)?;
-                            } else {
-                                write!(self.output, " ")?;
-                            }
-                            self.fmt_predicate_objects(child, comments, indent_level + 1)?;
+                    if child.kind() == "comment" {
+                        comments.push(child)
+                    } else {
+                        let new_line = if is_first_predicate_objects {
+                            is_first_predicate_objects = false;
+                            self.options.new_lines_for_easy_diff
+                        } else {
+                            write!(self.output, " ;")?;
+                            true
+                        } && self.options.new_lines_for_easy_diff;
+                        if new_line {
+                            self.fmt_comments(comments.drain(0..), true)?;
+                            self.new_indented_line(indent_level + 1)?;
+                        } else {
+                            write!(self.output, " ")?;
                         }
+                        self.fmt_predicate_objects(child, comments, indent_level + 1)?;
                     }
                 }
                 if self.options.new_lines_for_easy_diff {
@@ -521,16 +521,15 @@ without forced writing (--force)"
                 let new_line = self.options.new_lines_for_easy_diff;
                 // let new_line = true;
                 for child in Self::iter_children(node)? {
-                    match child.kind() {
-                        "comment" => comments.push(child),
-                        _ => {
-                            if new_line {
-                                self.new_indented_line(indent_level + 1)?;
-                            } else {
-                                write!(self.output, " ")?;
-                            }
-                            self.fmt_term(child, comments, false, indent_level + 1)?;
+                    if child.kind() == "comment" {
+                        comments.push(child)
+                    } else {
+                        if new_line {
+                            self.new_indented_line(indent_level + 1)?;
+                        } else {
+                            write!(self.output, " ")?;
                         }
+                        self.fmt_term(child, comments, false, indent_level + 1)?;
                     }
                 }
                 if new_line {
@@ -605,7 +604,7 @@ without forced writing (--force)"
             "integer" => {
                 let value = node.utf8_text(self.file)?;
                 debug_assert!(is_turtle_integer(value), "{value} should be an integer");
-                write!(self.output, "{value}")?
+                write!(self.output, "{value}")?;
             }
             "boolean" => {
                 let value = node.utf8_text(self.file)?;
@@ -613,17 +612,17 @@ without forced writing (--force)"
                     matches!(value, "true" | "false"),
                     "{value} should be true or false"
                 );
-                write!(self.output, "{value}")?
+                write!(self.output, "{value}")?;
             }
             "decimal" => {
                 let value = node.utf8_text(self.file)?;
                 debug_assert!(is_turtle_decimal(value), "{value} should be a decimal");
-                write!(self.output, "{value}")?
+                write!(self.output, "{value}")?;
             }
             "double" => {
                 let value = node.utf8_text(self.file)?;
                 debug_assert!(is_turtle_double(value), "{value} should be a double");
-                write!(self.output, "{value}")?
+                write!(self.output, "{value}")?;
             }
             _ => bail!("Unexpected term: {}", node.to_sexp()),
         }
@@ -678,9 +677,9 @@ without forced writing (--force)"
                 }
                 in_escape = false;
             } else if c == '\\' {
-                in_escape = true
+                in_escape = true;
             } else {
-                normalized_local.push(c)
+                normalized_local.push(c);
             }
         }
         if normalized_local.ends_with('.') {
@@ -780,7 +779,7 @@ without forced writing (--force)"
             .collect::<Result<Vec<_>>>()?;
         if !comments.is_empty() {
             if self.options.includes_sorting() {
-                self.seen_comments = true
+                self.seen_comments = true;
             }
             if inline {
                 write!(self.output, " ")?;
@@ -843,7 +842,7 @@ without forced writing (--force)"
                 if is_to_be_sorted(child) {
                     to_be_sorted.push(child);
                 } else {
-                    sorted.push(child)
+                    sorted.push(child);
                 }
             }
             self.sort_nodes(&mut to_be_sorted, extract_sort_key_sub_node);
@@ -883,7 +882,7 @@ struct StringDecoder<'a> {
 }
 
 impl<'a> StringDecoder<'a> {
-    fn new(input: &'a str) -> Self {
+    const fn new(input: &'a str) -> Self {
         Self { input, i: 0 }
     }
 }
@@ -941,7 +940,7 @@ fn is_turtle_integer(value: &str) -> bool {
     if value.starts_with(b"+") || value.starts_with(b"-") {
         value = &value[1..];
     }
-    !value.is_empty() && value.iter().all(|c| c.is_ascii_digit())
+    !value.is_empty() && value.iter().all(u8::is_ascii_digit)
 }
 
 fn is_turtle_decimal(value: &str) -> bool {
@@ -950,14 +949,14 @@ fn is_turtle_decimal(value: &str) -> bool {
     if value.starts_with(b"+") || value.starts_with(b"-") {
         value = &value[1..];
     }
-    while value.first().is_some_and(|c| c.is_ascii_digit()) {
+    while value.first().is_some_and(u8::is_ascii_digit) {
         value = &value[1..];
     }
     if !value.starts_with(b".") {
         return false;
     }
     value = &value[1..];
-    !value.is_empty() && value.iter().all(|c| c.is_ascii_digit())
+    !value.is_empty() && value.iter().all(u8::is_ascii_digit)
 }
 
 fn is_turtle_double(value: &str) -> bool {
@@ -968,14 +967,14 @@ fn is_turtle_double(value: &str) -> bool {
         value = &value[1..];
     }
     let mut with_before = false;
-    while value.first().is_some_and(|c| c.is_ascii_digit()) {
+    while value.first().is_some_and(u8::is_ascii_digit) {
         value = &value[1..];
         with_before = true;
     }
     let mut with_after = false;
     if value.starts_with(b".") {
         value = &value[1..];
-        while value.first().is_some_and(|c| c.is_ascii_digit()) {
+        while value.first().is_some_and(u8::is_ascii_digit) {
             value = &value[1..];
             with_after = true;
         }
@@ -987,7 +986,7 @@ fn is_turtle_double(value: &str) -> bool {
     if value.starts_with(b"+") || value.starts_with(b"-") {
         value = &value[1..];
     }
-    (with_before || with_after) && !value.is_empty() && value.iter().all(|c| c.is_ascii_digit())
+    (with_before || with_after) && !value.is_empty() && value.iter().all(u8::is_ascii_digit)
 }
 
 #[derive(Eq, PartialEq)]
