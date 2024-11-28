@@ -62,7 +62,7 @@ impl From<&Args> for FormatOptions {
         let indentation = args.indentation;
         let force = args.force;
         if args.diff_optimized {
-            FormatOptions {
+            Self {
                 indentation,
                 sort_terms: true,
                 new_lines_for_easy_diff: true,
@@ -70,7 +70,7 @@ impl From<&Args> for FormatOptions {
                 force,
             }
         } else {
-            FormatOptions {
+            Self {
                 indentation,
                 force,
                 ..Default::default()
