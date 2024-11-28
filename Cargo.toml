@@ -2,7 +2,7 @@
 authors = ["Tpt <thomas@pellissier-tanon.fr>"]
 description = "Auto-formatter for RDF Turtle"
 edition = "2021"
-keywords = ["Turtle"]
+keywords = ["pretty-print", "rdf", "turtle"]
 license = "Apache-2.0"
 name = "turtlefmt"
 readme = "README.md"
