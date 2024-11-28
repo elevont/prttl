@@ -490,7 +490,7 @@ without forced writing (--force)"
                 )?;
                 for child in children {
                     if child.kind() == "comment" {
-                        comments.push(child)
+                        comments.push(child);
                     } else {
                         let new_line = if is_first_predicate_objects {
                             is_first_predicate_objects = false;
@@ -522,7 +522,7 @@ without forced writing (--force)"
                 // let new_line = true;
                 for child in Self::iter_children(node)? {
                     if child.kind() == "comment" {
-                        comments.push(child)
+                        comments.push(child);
                     } else {
                         if new_line {
                             self.new_indented_line(indent_level + 1)?;
@@ -629,7 +629,7 @@ without forced writing (--force)"
         Ok(())
     }
 
-    fn extract_iriref(&mut self, node: Node<'_>) -> Result<String> {
+    fn extract_iriref(&self, node: Node<'_>) -> Result<String> {
         debug_assert_eq!(node.kind(), "iriref");
         // We normalize the IRI
         let raw = node.utf8_text(self.file)?;
@@ -645,7 +645,7 @@ without forced writing (--force)"
         Ok(normalized)
     }
 
-    fn extract_prefixed_name(&mut self, node: Node<'_>) -> Result<((String, String), String)> {
+    fn extract_prefixed_name(&self, node: Node<'_>) -> Result<((String, String), String)> {
         let (prefix, local) = node.utf8_text(self.file)?.split_once(':').unwrap();
         let Some(prefix_value) = self.prefixes.get(prefix) else {
             bail!(
@@ -663,10 +663,8 @@ without forced writing (--force)"
                     '.' | '-' => {
                         if normalized_local.is_empty() {
                             normalized_local.push('\\');
-                            normalized_local.push(c);
-                        } else {
-                            normalized_local.push(c);
                         }
+                        normalized_local.push(c);
                     }
                     '~' | '!' | '$' | '&' | '\'' | '(' | ')' | '*' | '+' | ',' | ';' | '='
                     | '/' | '?' | '#' | '@' | '%' => {
@@ -692,7 +690,7 @@ without forced writing (--force)"
         Ok(((prefix.to_string(), normalized_local), resolved))
     }
 
-    fn extract_string(&mut self, node: Node<'_>) -> Result<(String, bool)> {
+    fn extract_string(&self, node: Node<'_>) -> Result<(String, bool)> {
         debug_assert_eq!(node.kind(), "string");
 
         let raw = node.utf8_text(self.file)?;
@@ -805,7 +803,7 @@ without forced writing (--force)"
     }
 
     fn sort_nodes<KS: Fn(Node<'_>) -> Option<Node<'_>>>(
-        &mut self,
+        &self,
         to_be_sorted: &mut [Node<'_>],
         extract_sort_key_sub_node: KS,
     ) {
@@ -824,7 +822,7 @@ without forced writing (--force)"
         CS: FnMut(Node<'_>) -> bool,
         KS: Fn(Node<'_>) -> Option<Node<'_>>,
     >(
-        &mut self,
+        &self,
         node: Node<'i>,
         sort: bool,
         mut is_to_be_sorted: CS,
