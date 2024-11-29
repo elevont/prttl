@@ -298,7 +298,7 @@ without forced writing (--force)"
             match child.kind() {
                 "comment" => comments.push(child),
                 "iriref" => {
-                    let iri = self.extract_iriref(child)?;
+                    let iri = self.extract_iri_ref(child)?;
                     write!(self.output, "@base <{iri}>")?;
                 }
                 _ => bail!("Unexpected base child: {}", child.to_sexp()),
@@ -319,7 +319,7 @@ without forced writing (--force)"
                     prefix = child.utf8_text(self.file)?;
                 }
                 "iriref" => {
-                    let iri = self.extract_iriref(child)?;
+                    let iri = self.extract_iri_ref(child)?;
                     write!(self.output, "@prefix {prefix}: <{iri}>")?;
                     self.prefixes.insert(prefix.to_string(), iri);
                 }
@@ -461,7 +461,7 @@ without forced writing (--force)"
 
         match node.kind() {
             "iriref" => {
-                let iri = self.extract_iriref(node)?;
+                let iri = self.extract_iri_ref(node)?;
                 if is_predicate && iri == "http://www.w3.org/1999/02/22-rdf-syntax-ns#type" {
                     write!(self.output, "a")
                 } else {
@@ -555,9 +555,9 @@ without forced writing (--force)"
                                 "http://www.w3.org/1999/02/22-rdf-syntax-ns#langString".into();
                         }
                         "iriref" => {
-                            let iriref = self.extract_iriref(child)?;
-                            annotation = LiteralAnnotation::IriRef(iriref.clone());
-                            datatype = iriref.into();
+                            let iri_ref = self.extract_iri_ref(child)?;
+                            annotation = LiteralAnnotation::IriRef(iri_ref.clone());
+                            datatype = iri_ref.into();
                         }
                         "prefixed_name" => {
                             let ((prefix, local), resolved_iri) =
@@ -629,7 +629,7 @@ without forced writing (--force)"
         Ok(())
     }
 
-    fn extract_iriref(&self, node: Node<'_>) -> Result<String> {
+    fn extract_iri_ref(&self, node: Node<'_>) -> Result<String> {
         debug_assert_eq!(node.kind(), "iriref");
         // We normalize the IRI
         let raw = node.utf8_text(self.file)?;
