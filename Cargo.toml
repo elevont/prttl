@@ -34,17 +34,17 @@ print_stderr = "warn"
 #option_if_let_else = "allow"
 
 [dependencies]
-anyhow = "1.0"
-clap = { version = "4.5", features = ["derive"] }
-diffy = "0.4"
-tree-sitter = "0.25"
+anyhow = { version = "1.0", default-features = false }
+clap = { version = "4.5", default-features = false, features = ["std", "derive"] }
+diffy = { version = "0.4", default-features = false }
+tree-sitter = { version = "0.25", default-features = false, features = ["std"] }
 
 [dev-dependencies]
-oxrdf = "0.2"
-oxttl = "0.1"
+oxrdf = { version = "0.2", default-features = false }
+oxttl = { version = "0.1", default-features = false }
 pretty_assertions = "1.4"
 reqwest = { version = "0.12", default-features = false, features = ["blocking"] }
 
 [build-dependencies]
-cc = "1.1"
-tree-sitter-generate = "0.25"
+cc = { version = "1.1", default-features = false }
+tree-sitter-generate = { version = "0.25", default-features = false }
