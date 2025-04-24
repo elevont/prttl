@@ -44,7 +44,7 @@ fn parse_turtle(url: &str, data: &str) -> Result<Graph> {
     TurtleParser::new()
         .with_base_iri(url)?
         .for_slice(data.as_bytes())
-        .collect::<Result<_, _>>()
+        .collect::<core::result::Result<_, _>>()
         .with_context(|| format!("Error while parsing:\n{data}"))
 }
 
