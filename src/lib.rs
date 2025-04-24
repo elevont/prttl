@@ -409,7 +409,7 @@ without forced writing (--force)"
                 if !seen_predicate {
                     seen_predicate = true;
                     return false;
-                };
+                }
                 seen_predicate
             },
             |n| Some(n),
