@@ -1,5 +1,11 @@
 # TurtleFmt
 
+<!--
+SPDX-FileCopyrightText: 2022 Helsing GmbH
+
+SPDX-License-Identifier: Apache-2.0
+-->
+
 `turtlefmt` is an auto formatter for [RDF Turtle](https://www.w3.org/TR/turtle/) under Apache 2 license.
 
 ## Installation

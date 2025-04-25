@@ -1,3 +1,7 @@
+# SPDX-FileCopyrightText: 2022 Helsing GmbH
+#
+# SPDX-License-Identifier: Apache-2.0
+
 cd /workdir
 dnf install -y dnf-plugins-core
 dnf module install -y nodejs:20 llvm-toolset:rhel8

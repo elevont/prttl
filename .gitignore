@@ -1,3 +1,7 @@
+# SPDX-FileCopyrightText: 2022 Helsing GmbH
+#
+# SPDX-License-Identifier: Apache-2.0
+
 /target
 /tests/cache
 /tree-sitter/src

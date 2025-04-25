@@ -1,3 +1,7 @@
+# SPDX-FileCopyrightText: 2022 Helsing GmbH
+#
+# SPDX-License-Identifier: Apache-2.0
+
 cd /workdir
 apk add clang-dev nodejs
 curl https://static.rust-lang.org/rustup/dist/$(uname -m)-unknown-linux-musl/rustup-init --output rustup-init
