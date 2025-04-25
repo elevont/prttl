@@ -1,10 +1,15 @@
+#!/usr/bin/env bash
+
 # SPDX-FileCopyrightText: 2022 Helsing GmbH
 #
 # SPDX-License-Identifier: Apache-2.0
 
+set -Eeuo pipefail
+
 cd /workdir
 apk add clang-dev nodejs
-curl https://static.rust-lang.org/rustup/dist/$(uname -m)-unknown-linux-musl/rustup-init --output rustup-init
+curl "https://static.rust-lang.org/rustup/dist/$(uname -m)-unknown-linux-musl/rustup-init" \
+    --output rustup-init
 chmod +x rustup-init
 ./rustup-init -y --profile minimal
 source "$HOME/.cargo/env"
