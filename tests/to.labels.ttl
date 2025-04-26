@@ -1,0 +1,45 @@
+
+# SPDX-FileCopyrightText: wikipedia.org
+#
+# SPDX-License-Identifier: CC-BY-SA-4.0
+
+<http://example.org/web-data>
+  ex:title "Web Data" ;
+  ex:professor _:entity ;
+  ex:students [
+    a rdf:Bag ;
+    ex:hasMember [
+      ex:fullName "Mary Goround" ;
+    ] ;
+    ex:hasMember [
+      ex:fullName "The Block" ;
+    ] ;
+  ] ;
+  ex:generatedBy _:activity1 ;
+  ex:updatedWith [
+    a ex:Event, ex:Update ;
+    ex:actionOver _:activity1 ;
+    ex:creator [
+      ex:fullName "Bob Barnebie" ;
+      ex:homePage <http://example.net/bob-barnebie> ;
+    ] ;
+    ex:atTime "Monday 17 February, 08:12:00 CST" ;
+  ] ;
+  .
+
+_:entity
+  ex:fullName "Alice Carol" ;
+  ex:homePage <http://example.net/alice-carol> ;
+  ex:hasAddress [
+    a ex:Address ;
+    ex:streetAddress "123 Main St." ;
+    ex:postalCode "A1A1A1" ;
+    ex:addressLocality "London" ;
+  ] ;
+  .
+
+_:activity1
+  a ex:Event;
+  ex:creator _:entity ;
+  ex:atTime "Tuesday 11 February, 06:51:00 CST" ;
+  .
