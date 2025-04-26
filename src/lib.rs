@@ -362,9 +362,12 @@ without forced writing (--force)"
                     }
                     self.fmt_predicate_objects(child, &mut comments, 1)?;
                 }
-                _ => {
+                "iriref" | "prefixed_name" | "blank_node_label" => {
                     // The subject
                     self.fmt_term(child, &mut comments, false, 0)?;
+                }
+                _ => {
+                    bail!("Unexpected triples child kind: {}", child.kind());
                 }
             }
         }
