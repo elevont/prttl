@@ -1,0 +1,67 @@
+PREFIX ex: <http://example.net/>
+PREFIX rdfser: <http://w3id.org/oseg/ont/rdfser#>
+
+# SPDX-FileCopyrightText: wikipedia.org
+#
+# SPDX-License-Identifier: CC-BY-SA-4.0
+
+<http://example.org/web-data>
+  ex:title "Web Data" ;
+  ex:professor _:entity ;
+  ex:students _:students ;
+  ex:generatedBy _:activity1 ;
+  ex:updatedWith _:activity2 ;
+  .
+
+_:entity
+  rdfser:blankNodeIndex 1 ;
+  ex:fullName "Alice Carol" ;
+  ex:homePage <http://example.net/alice-carol> ;
+  ex:hasAddress _:address ;
+  .
+
+_:entity2
+  rdfser:blankNodeIndex 2 ;
+  ex:fullName "Bob Barnebie" ;
+  ex:homePage <http://example.net/bob-barnebie> ;
+  .
+
+_:address
+  rdfser:blankNodeIndex 3 ;
+  a ex:Address ;
+  ex:streetAddress "123 Main St." ;
+  ex:postalCode "A1A1A1" ;
+  ex:addressLocality "London" ;
+  .
+
+_:students
+  rdfser:blankNodeIndex 4 ;
+  a rdf:Bag ;
+  ex:hasMember _:s1 ;
+  ex:hasMember _:s2 ;
+  .
+
+_:s1
+  rdfser:blankNodeIndex 5 ;
+  ex:fullName "Mary Goround" ;
+  .
+
+_:s2
+  rdfser:blankNodeIndex 6 ;
+  ex:fullName "The Block" ;
+  .
+
+_:activity1
+  rdfser:blankNodeIndex 7 ;
+  a ex:Event;
+  ex:creator _:entity ;
+  ex:atTime "Tuesday 11 February, 06:51:00 CST" ;
+  .
+
+_:activity2
+  rdfser:blankNodeIndex 8 ;
+  a ex:Event, ex:Update ;
+  ex:actionOver _:activity1 ;
+  ex:creator _:entity2 ;
+  ex:atTime "Monday 17 February, 08:12:00 CST" ;
+  .
