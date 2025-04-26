@@ -1,3 +1,4 @@
+PREFIX ex: <http://example.net/>
 
 # SPDX-FileCopyrightText: wikipedia.org
 #
