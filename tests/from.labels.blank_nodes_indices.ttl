@@ -1,0 +1,42 @@
+PREFIX rdfser: <http://w3id.org/oseg/ont/rdfser#>
+
+# SPDX-FileCopyrightText: Robin Vobruba <hoijui.quaero@gmail.com>
+#
+# SPDX-License-Identifier: CC0-1.0
+
+# This file is to be concatenated with `from.labels.ttl`
+# to end up with the same content as `from.blank_nodes_with_indices.ttl`.
+# By itsself, this file makes no sense, as blank-node labels
+# are not allowed to be matched across files.
+
+_:entity
+  rdfser:blankNodeIndex 1 ;
+  .
+
+_:entity2
+  rdfser:blankNodeIndex 2 ;
+  .
+
+_:address
+  rdfser:blankNodeIndex 3 ;
+  .
+
+_:students
+  rdfser:blankNodeIndex 4 ;
+  .
+
+_:s1
+  rdfser:blankNodeIndex 5 ;
+  .
+
+_:s2
+  rdfser:blankNodeIndex 6 ;
+  .
+
+_:activity1
+  rdfser:blankNodeIndex 7 ;
+  .
+
+_:activity2
+  rdfser:blankNodeIndex 8 ;
+  .
