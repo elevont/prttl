@@ -3,10 +3,15 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use anyhow::{anyhow, bail, Error, Result};
+use grammar::{
+    is_turtle_decimal, is_turtle_double, is_turtle_integer, NodeKind, RootContext, StringDecoder,
+};
 use std::borrow::Cow;
 use std::collections::HashMap;
 use std::fmt::Write;
 use tree_sitter::{Language, Node};
+
+mod grammar;
 
 pub struct FormatOptions {
     /// Number of spaces used for one level of indentation
@@ -91,49 +96,6 @@ pub fn format_turtle(original: &str, options: &FormatOptions) -> Result<String> 
     Ok(result)
 }
 
-/// The order of the variants in this enum
-/// determines the sorting order.
-#[derive(PartialEq, Eq, PartialOrd, Ord, Debug)]
-enum NodeKindSortKey {
-    Comment,
-    A,
-    PrefixedName,
-    IriRef,
-    Collection,
-    BlankNodeAnonymous,
-    BlankNodeLabel,
-    BlankNodePropertyList,
-    Literal,
-    BooleanLiteral,
-    IntegerLiteral,
-    DecimalLiteral,
-    DoubleLiteral,
-    StringLiteral,
-    None,
-}
-
-impl NodeKindSortKey {
-    pub fn from_kind(kind: &str) -> Self {
-        match kind {
-            "comment" => Self::Comment,
-            "iriref" => Self::IriRef,
-            "prefixed_name" => Self::PrefixedName,
-            "a" => Self::A,
-            "anon" => Self::BlankNodeAnonymous,
-            "blank_node_label" => Self::BlankNodeLabel,
-            "blank_node_property_list" => Self::BlankNodePropertyList,
-            "collection" => Self::Collection,
-            "literal" => Self::Literal,
-            "string" => Self::StringLiteral,
-            "integer" => Self::IntegerLiteral,
-            "boolean" => Self::BooleanLiteral,
-            "decimal" => Self::DecimalLiteral,
-            "double" => Self::DoubleLiteral,
-            _ => Self::None,
-        }
-    }
-}
-
 struct TurtleFormatter<'a, W: Write> {
     file: &'a [u8],
     output: W,
@@ -144,7 +106,7 @@ struct TurtleFormatter<'a, W: Write> {
 
 impl<W: Write> TurtleFormatter<'_, W> {
     fn fmt_doc(&mut self, node: Node<'_>) -> Result<()> {
-        debug_assert_eq!(node.kind(), "turtle_doc");
+        debug_assert_eq!(NodeKind::from(&node), NodeKind::TurtleDoc);
         let mut context = RootContext::Start;
         let mut row = node.start_position().row;
         let mut prefix_buffer: Vec<(Node<'_>, Vec<Node<'_>>)> = Vec::new();
@@ -152,7 +114,7 @@ impl<W: Write> TurtleFormatter<'_, W> {
         let children = self.iter_children_sorted(
             node,
             self.options.sort_terms,
-            |n| n.kind() == "triples",
+            |n| NodeKind::from(&n) == NodeKind::Triples,
             |n| {
                 for sn in n.children_by_field_name("subject", &mut n.walk()) {
                     let sn_cont = sn.utf8_text(self.file).unwrap_or("");
@@ -165,8 +127,8 @@ impl<W: Write> TurtleFormatter<'_, W> {
             },
         )?;
         for child in children {
-            match child.kind() {
-                "comment" => {
+            match NodeKind::from(&child) {
+                NodeKind::Comment => {
                     if child.start_position().row == row {
                         if let Some((_, prefix_comments)) = prefix_buffer.last_mut() {
                             // We keep the comment connected to the prefixes
@@ -197,7 +159,7 @@ impl<W: Write> TurtleFormatter<'_, W> {
                         context = RootContext::Comment;
                     }
                 }
-                "base" => {
+                NodeKind::Base => {
                     self.fmt_possible_prefixes(&mut prefix_buffer, &mut context)?;
                     if context != RootContext::Start {
                         writeln!(self.output)?;
@@ -208,10 +170,10 @@ impl<W: Write> TurtleFormatter<'_, W> {
                     context = RootContext::Prefixes;
                     self.fmt_base(child)?;
                 }
-                "prefix" => {
+                NodeKind::Prefix => {
                     prefix_buffer.push((child, Vec::new()));
                 }
-                "triples" => {
+                NodeKind::Triples => {
                     self.fmt_possible_prefixes(&mut prefix_buffer, &mut context)?;
                     if context != RootContext::Start {
                         if context != RootContext::Comment || child.start_position().row > row + 1 {
@@ -276,7 +238,7 @@ without forced writing (--force)"
             if i > 0 {
                 writeln!(self.output)?;
             }
-            debug_assert_eq!(node.kind(), "prefix");
+            debug_assert_eq!(NodeKind::from(node), NodeKind::Prefix);
             self.fmt_prefix(*node)?;
             self.fmt_comments(comments.iter().copied(), true)?;
         }
@@ -286,12 +248,12 @@ without forced writing (--force)"
     }
 
     fn fmt_base(&mut self, node: Node<'_>) -> Result<()> {
-        debug_assert_eq!(node.kind(), "base");
+        debug_assert_eq!(NodeKind::from(&node), NodeKind::Base);
         let mut comments = Vec::new();
         for child in Self::iter_children(node)? {
-            match child.kind() {
-                "comment" => comments.push(child),
-                "iriref" => {
+            match NodeKind::from(&child) {
+                NodeKind::Comment => comments.push(child),
+                NodeKind::IriRef => {
                     let iri = self.extract_iri_ref(child)?;
                     write!(self.output, "@base <{iri}>")?;
                 }
@@ -303,16 +265,16 @@ without forced writing (--force)"
     }
 
     fn fmt_prefix(&mut self, node: Node<'_>) -> Result<()> {
-        debug_assert_eq!(node.kind(), "prefix");
+        debug_assert_eq!(NodeKind::from(&node), NodeKind::Prefix);
         let mut comments = Vec::new();
         let mut prefix = "";
         for child in Self::iter_children(node)? {
-            match child.kind() {
-                "comment" => comments.push(child),
-                "pn_prefix" => {
+            match NodeKind::from(&child) {
+                NodeKind::Comment => comments.push(child),
+                NodeKind::PNPrefix => {
                     prefix = child.utf8_text(self.file)?;
                 }
-                "iriref" => {
+                NodeKind::IriRef => {
                     let iri = self.extract_iri_ref(child)?;
                     write!(self.output, "@prefix {prefix}: <{iri}>")?;
                     self.prefixes.insert(prefix.to_string(), iri);
@@ -333,19 +295,19 @@ without forced writing (--force)"
     }
 
     fn fmt_triples(&mut self, node: Node<'_>) -> Result<()> {
-        debug_assert_eq!(node.kind(), "triples");
+        debug_assert_eq!(NodeKind::from(&node), NodeKind::Triples);
         let mut comments = Vec::new();
         let mut is_first_predicate_objects = true;
         let children = self.iter_children_sorted(
             node,
             self.options.sort_terms,
-            |n| n.kind() == "predicate_objects",
+            |n| NodeKind::from(&n) == NodeKind::PredicateObjects,
             |n| n.child_by_field_name("predicate"),
         )?;
         for child in children {
-            match child.kind() {
-                "comment" => comments.push(child),
-                "predicate_objects" => {
+            match NodeKind::from(&child) {
+                NodeKind::Comment => comments.push(child),
+                NodeKind::PredicateObjects => {
                     let new_line = if is_first_predicate_objects {
                         if !self.options.new_lines_for_easy_diff {
                             write!(self.output, " ")?;
@@ -362,7 +324,12 @@ without forced writing (--force)"
                     }
                     self.fmt_predicate_objects(child, &mut comments, 1)?;
                 }
-                "iriref" | "prefixed_name" | "blank_node_label" => {
+                NodeKind::IriRef
+                | NodeKind::PrefixedName
+                | NodeKind::BlankNodePropertyList
+                | NodeKind::BlankNodeLabel
+                | NodeKind::Collection
+                | NodeKind::BlankNodeAnonymous => {
                     // The subject
                     self.fmt_term(child, &mut comments, false, 0)?;
                 }
@@ -387,12 +354,12 @@ without forced writing (--force)"
         comments: &mut Vec<Node<'b>>,
         indent_level: usize,
     ) -> Result<()> {
-        debug_assert_eq!(node.kind(), "predicate_objects");
+        debug_assert_eq!(NodeKind::from(&node), NodeKind::PredicateObjects);
         let mut is_predicate = true;
         let mut is_first_object = true;
         let num_objects = Self::iter_children(node)?
             .into_iter()
-            .filter(|child| child.kind() != "comment")
+            .filter(|child| NodeKind::from(child) != NodeKind::Comment)
             .count()
             - 1;
         let mut seen_predicate = false;
@@ -400,7 +367,7 @@ without forced writing (--force)"
             node,
             self.options.sort_terms && num_objects > 0,
             |n| {
-                if n.kind() == "comment" {
+                if NodeKind::from(&n) == NodeKind::Comment {
                     return false;
                 }
                 if !seen_predicate {
@@ -412,8 +379,8 @@ without forced writing (--force)"
             |n| Some(n),
         )?;
         for child in children {
-            match child.kind() {
-                "comment" => comments.push(child),
+            match NodeKind::from(&child) {
+                NodeKind::Comment => comments.push(child),
                 _ => {
                     if is_predicate {
                         self.fmt_term(child, comments, true, indent_level + 1)?;
@@ -456,8 +423,8 @@ without forced writing (--force)"
             PrefixedName(String, String),
         }
 
-        match node.kind() {
-            "iriref" => {
+        match NodeKind::from(&node) {
+            NodeKind::IriRef => {
                 let iri = self.extract_iri_ref(node)?;
                 if is_predicate && iri == "http://www.w3.org/1999/02/22-rdf-syntax-ns#type" {
                     write!(self.output, "a")
@@ -465,7 +432,7 @@ without forced writing (--force)"
                     write!(self.output, "<{iri}>")
                 }?;
             }
-            "prefixed_name" => {
+            NodeKind::PrefixedName => {
                 let ((prefix, local), iri) = self.extract_prefixed_name(node)?;
                 if is_predicate && iri == "http://www.w3.org/1999/02/22-rdf-syntax-ns#type" {
                     write!(self.output, "a")
@@ -473,20 +440,20 @@ without forced writing (--force)"
                     write!(self.output, "{prefix}:{local}")
                 }?;
             }
-            "a" => write!(self.output, "a")?,
-            "anon" => write!(self.output, "[]")?,
-            "blank_node_label" => write!(self.output, "_:{}", node.utf8_text(self.file)?)?,
-            "blank_node_property_list" => {
+            NodeKind::A => write!(self.output, "a")?,
+            NodeKind::BlankNodeAnonymous => write!(self.output, "[]")?,
+            NodeKind::BlankNodeLabel => write!(self.output, "_:{}", node.utf8_text(self.file)?)?,
+            NodeKind::BlankNodePropertyList => {
                 let mut is_first_predicate_objects = true;
                 write!(self.output, "[")?;
                 let children = self.iter_children_sorted(
                     node,
                     self.options.sort_terms,
-                    |n| n.kind() == "predicate_objects",
+                    |n| NodeKind::from(&n) == NodeKind::PredicateObjects,
                     |n| n.child_by_field_name("predicate"),
                 )?;
                 for child in children {
-                    if child.kind() == "comment" {
+                    if NodeKind::from(&child) == NodeKind::Comment {
                         comments.push(child);
                     } else {
                         let new_line = if is_first_predicate_objects {
@@ -513,12 +480,12 @@ without forced writing (--force)"
                 }
                 write!(self.output, "]")?;
             }
-            "collection" => {
+            NodeKind::Collection => {
                 write!(self.output, "(")?;
                 let new_line = self.options.new_lines_for_easy_diff;
                 // let new_line = true;
                 for child in Self::iter_children(node)? {
-                    if child.kind() == "comment" {
+                    if NodeKind::from(&child) == NodeKind::Comment {
                         comments.push(child);
                     } else {
                         if new_line {
@@ -536,33 +503,38 @@ without forced writing (--force)"
                 }
                 write!(self.output, ")")?;
             }
-            "literal" => {
+            NodeKind::Literal => {
                 let mut value = String::new();
                 let mut is_long_string = false;
                 let mut annotation = LiteralAnnotation::None;
                 let mut datatype = Cow::Borrowed("http://www.w3.org/2001/XMLSchema#string");
                 for child in Self::iter_children(node)? {
-                    match child.kind() {
-                        "comment" => comments.push(child),
-                        "string" => (value, is_long_string) = self.extract_string(child)?,
-                        "langtag" => {
+                    match NodeKind::from(&child) {
+                        NodeKind::Comment => comments.push(child),
+                        NodeKind::StringLiteral => {
+                            (value, is_long_string) = self.extract_string(child)?;
+                        }
+                        NodeKind::LangTag => {
                             annotation =
                                 LiteralAnnotation::LangTag(child.utf8_text(self.file)?.to_string());
                             datatype =
                                 "http://www.w3.org/1999/02/22-rdf-syntax-ns#langString".into();
                         }
-                        "iriref" => {
+                        NodeKind::IriRef => {
                             let iri_ref = self.extract_iri_ref(child)?;
                             annotation = LiteralAnnotation::IriRef(iri_ref.clone());
                             datatype = iri_ref.into();
                         }
-                        "prefixed_name" => {
+                        NodeKind::PrefixedName => {
                             let ((prefix, local), resolved_iri) =
                                 self.extract_prefixed_name(child)?;
                             annotation = LiteralAnnotation::PrefixedName(prefix, local);
                             datatype = resolved_iri.into();
                         }
-                        "@" | "^^" | "<" | ">" => (),
+                        NodeKind::At
+                        | NodeKind::DataType
+                        | NodeKind::IriStart
+                        | NodeKind::IriEnd => (),
                         _ => bail!("Unexpected literal child: {}", child.to_sexp()),
                     }
                 }
@@ -598,12 +570,12 @@ without forced writing (--force)"
                     }
                 }?;
             }
-            "integer" => {
+            NodeKind::IntegerLiteral => {
                 let value = node.utf8_text(self.file)?;
                 debug_assert!(is_turtle_integer(value), "{value} should be an integer");
                 write!(self.output, "{value}")?;
             }
-            "boolean" => {
+            NodeKind::BooleanLiteral => {
                 let value = node.utf8_text(self.file)?;
                 debug_assert!(
                     matches!(value, "true" | "false"),
@@ -611,12 +583,12 @@ without forced writing (--force)"
                 );
                 write!(self.output, "{value}")?;
             }
-            "decimal" => {
+            NodeKind::DecimalLiteral => {
                 let value = node.utf8_text(self.file)?;
                 debug_assert!(is_turtle_decimal(value), "{value} should be a decimal");
                 write!(self.output, "{value}")?;
             }
-            "double" => {
+            NodeKind::DoubleLiteral => {
                 let value = node.utf8_text(self.file)?;
                 debug_assert!(is_turtle_double(value), "{value} should be a double");
                 write!(self.output, "{value}")?;
@@ -627,7 +599,7 @@ without forced writing (--force)"
     }
 
     fn extract_iri_ref(&self, node: Node<'_>) -> Result<String> {
-        debug_assert_eq!(node.kind(), "iriref");
+        debug_assert_eq!(NodeKind::from(&node), NodeKind::IriRef);
         // We normalize the IRI
         let raw = node.utf8_text(self.file)?;
         let mut normalized = String::with_capacity(raw.len());
@@ -688,7 +660,7 @@ without forced writing (--force)"
     }
 
     fn extract_string(&self, node: Node<'_>) -> Result<(String, bool)> {
-        debug_assert_eq!(node.kind(), "string");
+        debug_assert_eq!(NodeKind::from(&node), NodeKind::StringLiteral);
 
         let raw = node.utf8_text(self.file)?;
         if raw.starts_with("\"\"\"") || raw.starts_with("'''") {
@@ -805,11 +777,8 @@ without forced writing (--force)"
         extract_sort_key_sub_node: KS,
     ) {
         to_be_sorted.sort_by_key(|n| {
-            extract_sort_key_sub_node(*n).map_or((NodeKindSortKey::None, ""), |n| {
-                (
-                    NodeKindSortKey::from_kind(n.kind()),
-                    n.utf8_text(self.file).unwrap_or(""),
-                )
+            extract_sort_key_sub_node(*n).map_or((NodeKind::None, ""), |n| {
+                (NodeKind::from(&n), n.utf8_text(self.file).unwrap_or(""))
             })
         });
     }
@@ -829,7 +798,8 @@ without forced writing (--force)"
             let mut sorted = vec![];
             let mut to_be_sorted = vec![];
             for child in Self::iter_children(node)? {
-                if child.kind() == "base" || child.kind() == "prefix" {
+                let child_kind = NodeKind::from(&child);
+                if child_kind == NodeKind::Base || child_kind == NodeKind::Prefix {
                     self.sort_nodes(&mut to_be_sorted, &extract_sort_key_sub_node);
                     sorted.append(&mut to_be_sorted);
                     to_be_sorted.clear();
@@ -869,125 +839,4 @@ without forced writing (--force)"
             )
         }
     }
-}
-
-struct StringDecoder<'a> {
-    input: &'a str,
-    i: usize,
-}
-
-impl<'a> StringDecoder<'a> {
-    const fn new(input: &'a str) -> Self {
-        Self { input, i: 0 }
-    }
-}
-
-impl Iterator for StringDecoder<'_> {
-    type Item = Result<char>;
-
-    fn next(&mut self) -> Option<Result<char>> {
-        let c = self.input[self.i..].chars().next()?;
-        Some(if c == '\\' {
-            match self.input[self.i + 1..].chars().next().unwrap() {
-                'u' => {
-                    self.i += 6;
-                    decode_uchar(&self.input[self.i - 6..self.i])
-                }
-                'U' => {
-                    self.i += 10;
-                    decode_uchar(&self.input[self.i - 10..self.i])
-                }
-                c => {
-                    self.i += c.len_utf8() + 1;
-                    decode_echar(c)
-                }
-            }
-        } else {
-            self.i += c.len_utf8();
-            Ok(c)
-        })
-    }
-}
-
-fn decode_echar(c: char) -> Result<char> {
-    match c {
-        't' => Ok('\t'),
-        'b' => Ok('\x08'),
-        'n' => Ok('\n'),
-        'r' => Ok('\r'),
-        'f' => Ok('\x0C'),
-        '"' => Ok('"'),
-        '\'' => Ok('\''),
-        '\\' => Ok('\\'),
-        _ => bail!("The escaped character '\\{c}' is not valid"),
-    }
-}
-
-fn decode_uchar(input: &str) -> Result<char> {
-    char::from_u32(u32::from_str_radix(&input[2..], 16).unwrap()).ok_or_else(|| {
-        anyhow!("The escaped unicode character '{input}' is not encoding a valid unicode character")
-    })
-}
-
-fn is_turtle_integer(value: &str) -> bool {
-    // [19] 	INTEGER 	::= 	[+-]? [0-9]+
-    let mut value = value.as_bytes();
-    if value.starts_with(b"+") || value.starts_with(b"-") {
-        value = &value[1..];
-    }
-    !value.is_empty() && value.iter().all(u8::is_ascii_digit)
-}
-
-fn is_turtle_decimal(value: &str) -> bool {
-    // [20] 	DECIMAL 	::= 	[+-]? [0-9]* '.' [0-9]+
-    let mut value = value.as_bytes();
-    if value.starts_with(b"+") || value.starts_with(b"-") {
-        value = &value[1..];
-    }
-    while value.first().is_some_and(u8::is_ascii_digit) {
-        value = &value[1..];
-    }
-    if !value.starts_with(b".") {
-        return false;
-    }
-    value = &value[1..];
-    !value.is_empty() && value.iter().all(u8::is_ascii_digit)
-}
-
-fn is_turtle_double(value: &str) -> bool {
-    // [21] 	DOUBLE 	::= 	[+-]? ([0-9]+ '.' [0-9]* EXPONENT | '.' [0-9]+ EXPONENT | [0-9]+ EXPONENT)
-    // [154s] 	EXPONENT 	::= 	[eE] [+-]? [0-9]+
-    let mut value = value.as_bytes();
-    if value.starts_with(b"+") || value.starts_with(b"-") {
-        value = &value[1..];
-    }
-    let mut with_before = false;
-    while value.first().is_some_and(u8::is_ascii_digit) {
-        value = &value[1..];
-        with_before = true;
-    }
-    let mut with_after = false;
-    if value.starts_with(b".") {
-        value = &value[1..];
-        while value.first().is_some_and(u8::is_ascii_digit) {
-            value = &value[1..];
-            with_after = true;
-        }
-    }
-    if !(value.starts_with(b"e") || value.starts_with(b"E")) {
-        return false;
-    }
-    value = &value[1..];
-    if value.starts_with(b"+") || value.starts_with(b"-") {
-        value = &value[1..];
-    }
-    (with_before || with_after) && !value.is_empty() && value.iter().all(u8::is_ascii_digit)
-}
-
-#[derive(Eq, PartialEq)]
-enum RootContext {
-    Start,
-    Prefixes,
-    Triples,
-    Comment,
 }
