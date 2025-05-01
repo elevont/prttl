@@ -9,7 +9,7 @@ use std::ffi::OsStr;
 use std::fs;
 use std::path::{Path, PathBuf};
 use std::process::ExitCode;
-use turtlefmt::{format_turtle, FormatOptions};
+use turtlefmt::{format_turtle, formatter::FormatOptions};
 
 /// Apply a consistent formatting to a Turtle file
 #[derive(Parser, Debug)]

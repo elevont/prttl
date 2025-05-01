@@ -4,7 +4,7 @@
 
 #[cfg(test)]
 use pretty_assertions::assert_eq;
-use turtlefmt::{format_turtle, FormatOptions};
+use turtlefmt::{format_turtle, formatter::FormatOptions};
 
 fn fmt_opts_inverted() -> FormatOptions {
     FormatOptions {

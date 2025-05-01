@@ -11,7 +11,7 @@ use std::collections::hash_map::DefaultHasher;
 use std::hash::Hasher;
 use std::path::Path;
 use std::{fs, str};
-use turtlefmt::{format_turtle, FormatOptions};
+use turtlefmt::{format_turtle, formatter::FormatOptions};
 
 const CACHE: &str = "tests/cache";
 
