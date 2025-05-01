@@ -598,6 +598,7 @@ without forced writing (--force)"
         Ok(())
     }
 
+    /// Returns the **normalized** (i.e. URL quoted) IRI of the given IRI reference.
     fn extract_iri_ref(&self, node: Node<'_>) -> Result<String> {
         debug_assert_eq!(NodeKind::from(&node), NodeKind::IriRef);
         // We normalize the IRI
@@ -614,6 +615,13 @@ without forced writing (--force)"
         Ok(normalized)
     }
 
+    /// Returns the prefix, the **normalized** local part,
+    /// and the resolved IRI of the given prefixed name.
+    ///
+    /// # Panics
+    ///
+    /// - If a prefix is used that is not yet defined
+    /// - If the local part contains invalid characters
     fn extract_prefixed_name(&self, node: Node<'_>) -> Result<((String, String), String)> {
         let (prefix, local) = node.utf8_text(self.file)?.split_once(':').unwrap();
         let Some(prefix_value) = self.prefixes.get(prefix) else {
@@ -659,6 +667,12 @@ without forced writing (--force)"
         Ok(((prefix.to_string(), normalized_local), resolved))
     }
 
+    /// Converts a parsed string literal node into a string
+    /// representing that string literal in Turtle.
+    ///
+    /// That output string is ready to be printed into a `*.ttl` file,
+    /// though without language tag or datatype.
+    /// The second output indicates whether it is a multi-line string.
     fn extract_string(&self, node: Node<'_>) -> Result<(String, bool)> {
         debug_assert_eq!(NodeKind::from(&node), NodeKind::StringLiteral);
 
@@ -735,6 +749,7 @@ without forced writing (--force)"
         }
     }
 
+    /// Writes out the supplied comments.
     fn fmt_comments<'b>(
         &mut self,
         nodes: impl IntoIterator<Item = Node<'b>>,
@@ -756,6 +771,13 @@ without forced writing (--force)"
         Ok(())
     }
 
+    /// Returns a vector of the _named_ children of the given node.
+    ///
+    /// # Errors
+    ///
+    /// - if any of the children is a syntax error
+    /// - if there is a missing node
+    ///   (created by the parser to recover from an invalid state)
     fn iter_children(node: Node<'_>) -> Result<Vec<Node<'_>>> {
         let mut walk = node.walk();
         node.children(&mut walk)
@@ -771,6 +793,16 @@ without forced writing (--force)"
             .collect()
     }
 
+    /// Sort nodes in-place, based on their sort key (a sub-node),
+    /// which is extracted from each node in the list to be sorted
+    /// through the given function.
+    ///
+    /// If the return of the sort key is `None` -
+    /// it failed to be extracted from a node -
+    /// the node is not sorted,
+    /// or say,
+    /// it is put at the end or the beginning of the (sorted) output,
+    /// together in a bunch with the other unsortable nodes.
     fn sort_nodes<KS: Fn(Node<'_>) -> Option<Node<'_>>>(
         &self,
         to_be_sorted: &mut [Node<'_>],
@@ -783,6 +815,21 @@ without forced writing (--force)"
         });
     }
 
+    /// Iterates through the children of the given node,
+    /// optionally first sorting them..
+    ///
+    /// If sorting is enabled,
+    /// that sorting does not happen globally,
+    /// but within sections limited by:
+    ///
+    /// - the beginning of the list
+    /// - `NodeKind::Base`
+    /// - `NodeKind::Prefix`
+    /// - the end of the list
+    ///
+    /// Furthermore, only nodes selected by  `is_to_be_sorted` will be sorted,
+    /// while the others will be yielded at the beginning of the section
+    /// in the order they appear in the input.
     fn iter_children_sorted<
         'i,
         CS: FnMut(Node<'_>) -> bool,
@@ -819,6 +866,8 @@ without forced writing (--force)"
         Ok(children)
     }
 
+    /// Creates an anonymous anyhow error for a node,
+    /// including the nodes context (line and column numbers) within the input.
     fn fmt_err(node: Node<'_>) -> Error {
         let start = node.start_position();
         let end = node.end_position();
