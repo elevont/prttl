@@ -62,6 +62,17 @@ impl FormatOptions {
     }
 }
 
+struct PrefixedResource {
+    /// The prefix; e.g. `"xsd"` or `"schema"`.
+    pub prefix: String,
+    /// The resources local name, normalized; e.g. `"string"` or `"Person"`.
+    pub local: String,
+    /// The resolved resource;
+    /// e.g. `"http://www.w3.org/2001/XMLSchema#string"`
+    /// or `"http://schema.org/Person"`.
+    pub iri: String,
+}
+
 fn get_tree_sitter_turtle() -> Language {
     extern "C" {
         fn tree_sitter_turtle() -> Language;
@@ -433,7 +444,7 @@ without forced writing (--force)"
                 }?;
             }
             NodeKind::PrefixedName => {
-                let ((prefix, local), iri) = self.extract_prefixed_name(node)?;
+                let PrefixedResource { prefix, local, iri } = self.extract_prefixed_name(node)?;
                 if is_predicate && iri == "http://www.w3.org/1999/02/22-rdf-syntax-ns#type" {
                     write!(self.output, "a")
                 } else {
@@ -526,10 +537,10 @@ without forced writing (--force)"
                             datatype = iri_ref.into();
                         }
                         NodeKind::PrefixedName => {
-                            let ((prefix, local), resolved_iri) =
+                            let PrefixedResource { prefix, local, iri } =
                                 self.extract_prefixed_name(child)?;
                             annotation = LiteralAnnotation::PrefixedName(prefix, local);
-                            datatype = resolved_iri.into();
+                            datatype = iri.into();
                         }
                         NodeKind::At
                         | NodeKind::DataType
@@ -622,7 +633,7 @@ without forced writing (--force)"
     ///
     /// - If a prefix is used that is not yet defined
     /// - If the local part contains invalid characters
-    fn extract_prefixed_name(&self, node: Node<'_>) -> Result<((String, String), String)> {
+    fn extract_prefixed_name(&self, node: Node<'_>) -> Result<PrefixedResource> {
         let (prefix, local) = node.utf8_text(self.file)?.split_once(':').unwrap();
         let Some(prefix_value) = self.prefixes.get(prefix) else {
             bail!(
@@ -664,7 +675,11 @@ without forced writing (--force)"
         }
 
         let resolved = format!("{prefix_value}{normalized_local}");
-        Ok(((prefix.to_string(), normalized_local), resolved))
+        Ok(PrefixedResource {
+            prefix: prefix.to_string(),
+            local: normalized_local,
+            iri: resolved,
+        })
     }
 
     /// Converts a parsed string literal node into a string
