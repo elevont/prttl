@@ -572,14 +572,14 @@ without forced writing (--force)"
             }
             NodeKind::IntegerLiteral => {
                 let value = node.utf8_text(self.file)?;
-                debug_assert!(is_turtle_integer(value), "{value} should be an integer");
+                debug_assert!(is_turtle_integer(value), "'{value}' should be an integer");
                 write!(self.output, "{value}")?;
             }
             NodeKind::BooleanLiteral => {
                 let value = node.utf8_text(self.file)?;
                 debug_assert!(
                     matches!(value, "true" | "false"),
-                    "{value} should be true or false"
+                    "'{value}' should rather be true or false"
                 );
                 write!(self.output, "{value}")?;
             }
