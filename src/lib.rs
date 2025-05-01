@@ -3,7 +3,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use anyhow::{anyhow, bail, Error, Result};
-use formatter::FormatOptions;
+use formatter::{Context, FormatOptions};
 use grammar::{
     is_turtle_decimal, is_turtle_double, is_turtle_integer, NodeKind, RootContext, StringDecoder,
 };
@@ -45,6 +45,7 @@ fn format_turtle_once(original: &str, options: &FormatOptions) -> Result<String>
         options,
         prefixes: HashMap::new(),
         seen_comments: false,
+        context: Context::default(),
     }
     .fmt_doc(tree.root_node())?;
     Ok(formatted)
@@ -66,6 +67,7 @@ struct TurtleFormatter<'a, W: Write> {
     options: &'a FormatOptions,
     prefixes: HashMap<String, String>,
     seen_comments: bool,
+    context: Context<'a>,
 }
 
 impl<W: Write> TurtleFormatter<'_, W> {
@@ -250,9 +252,9 @@ without forced writing (--force)"
         self.fmt_comments(comments, true)
     }
 
-    fn new_indented_line(&mut self, indents: usize) -> Result<()> {
+    fn new_indented_line(&mut self) -> Result<()> {
         writeln!(self.output)?;
-        for _ in 0..(self.options.indentation * indents) {
+        for _ in 0..(self.options.indentation * self.context.indent_level) {
             write!(self.output, " ")?;
         }
         Ok(())
@@ -282,11 +284,13 @@ without forced writing (--force)"
                         write!(self.output, " ;")?;
                         true
                     };
+                    self.context.indent_level += 1;
                     if new_line {
                         self.fmt_comments(comments.drain(0..), true)?;
-                        self.new_indented_line(1)?;
+                        self.new_indented_line()?;
                     }
-                    self.fmt_predicate_objects(child, &mut comments, 1)?;
+                    self.fmt_predicate_objects(child, &mut comments)?;
+                    self.context.indent_level -= 1;
                 }
                 NodeKind::IriRef
                 | NodeKind::PrefixedName
@@ -295,28 +299,30 @@ without forced writing (--force)"
                 | NodeKind::Collection
                 | NodeKind::BlankNodeAnonymous => {
                     // The subject
-                    self.fmt_term(child, &mut comments, false, 0)?;
+                    self.fmt_term(child, &mut comments, false)?;
                 }
                 _ => {
                     bail!("Unexpected triples child kind: {}", child.kind());
                 }
             }
         }
+        self.context.indent_level += 1;
         if self.options.new_lines_for_easy_diff {
             write!(self.output, " ;")?;
-            self.new_indented_line(1)?;
+            self.new_indented_line()?;
             write!(self.output, ".")?;
         } else {
             write!(self.output, " .")?;
         }
-        self.fmt_comments(comments, true)
+        self.fmt_comments(comments, true)?;
+        self.context.indent_level -= 1;
+        Ok(())
     }
 
     fn fmt_predicate_objects<'b>(
         &mut self,
         node: Node<'b>,
         comments: &mut Vec<Node<'b>>,
-        indent_level: usize,
     ) -> Result<()> {
         debug_assert_eq!(NodeKind::from(&node), NodeKind::PredicateObjects);
         let mut is_predicate = true;
@@ -346,27 +352,29 @@ without forced writing (--force)"
             match NodeKind::from(&child) {
                 NodeKind::Comment => comments.push(child),
                 _ => {
+                    self.context.indent_level += 1;
                     if is_predicate {
-                        self.fmt_term(child, comments, true, indent_level + 1)?;
+                        self.fmt_term(child, comments, is_predicate)?;
                         is_predicate = false;
                     } else {
                         if is_first_object {
                             if self.options.single_object_on_new_line
                                 || (num_objects > 1 && self.options.new_lines_for_easy_diff)
                             {
-                                self.new_indented_line(indent_level + 1)?;
+                                self.new_indented_line()?;
                             } else {
                                 write!(self.output, " ")?;
                             }
                             is_first_object = false;
                         } else if self.options.new_lines_for_easy_diff {
                             write!(self.output, " ,")?;
-                            self.new_indented_line(indent_level + 1)?;
+                            self.new_indented_line()?;
                         } else {
                             write!(self.output, " , ")?;
                         }
-                        self.fmt_term(child, comments, false, indent_level + 1)?;
+                        self.fmt_term(child, comments, false)?;
                     }
+                    self.context.indent_level -= 1;
                 }
             }
         }
@@ -378,7 +386,6 @@ without forced writing (--force)"
         node: Node<'b>,
         comments: &mut Vec<Node<'b>>,
         is_predicate: bool,
-        indent_level: usize,
     ) -> Result<()> {
         match NodeKind::from(&node) {
             NodeKind::IriRef => {
@@ -420,18 +427,20 @@ without forced writing (--force)"
                             write!(self.output, " ;")?;
                             true
                         } && self.options.new_lines_for_easy_diff;
+                        self.context.indent_level += 1;
                         if new_line {
                             self.fmt_comments(comments.drain(0..), true)?;
-                            self.new_indented_line(indent_level + 1)?;
+                            self.new_indented_line()?;
                         } else {
                             write!(self.output, " ")?;
                         }
-                        self.fmt_predicate_objects(child, comments, indent_level + 1)?;
+                        self.fmt_predicate_objects(child, comments)?;
+                        self.context.indent_level -= 1;
                     }
                 }
                 if self.options.new_lines_for_easy_diff {
                     write!(self.output, " ;")?;
-                    self.new_indented_line(indent_level)?;
+                    self.new_indented_line()?;
                 } else {
                     write!(self.output, " ")?;
                 }
@@ -445,16 +454,18 @@ without forced writing (--force)"
                     if NodeKind::from(&child) == NodeKind::Comment {
                         comments.push(child);
                     } else {
+                        self.context.indent_level += 1;
                         if new_line {
-                            self.new_indented_line(indent_level + 1)?;
+                            self.new_indented_line()?;
                         } else {
                             write!(self.output, " ")?;
                         }
-                        self.fmt_term(child, comments, false, indent_level + 1)?;
+                        self.fmt_term(child, comments, false)?;
+                        self.context.indent_level -= 1;
                     }
                 }
                 if new_line {
-                    self.new_indented_line(indent_level)?;
+                    self.new_indented_line()?;
                 } else {
                     write!(self.output, " ")?;
                 }

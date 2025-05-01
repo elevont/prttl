@@ -59,7 +59,7 @@ impl FormatOptions {
 pub struct Context<'tree> {
     /// The level of indentation
     /// (**not** measured in spaces).
-    pub indentation_level: usize,
+    pub indent_level: usize,
     pub subj: Option<Rc<Node<'tree>>>,
     pub pred: Option<Rc<Node<'tree>>>,
 }
