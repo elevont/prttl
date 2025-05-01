@@ -380,13 +380,6 @@ without forced writing (--force)"
         is_predicate: bool,
         indent_level: usize,
     ) -> Result<()> {
-        enum LiteralAnnotation {
-            None,
-            LangTag(String),
-            IriRef(String),
-            PrefixedName(String, String),
-        }
-
         match NodeKind::from(&node) {
             NodeKind::IriRef => {
                 let iri = self.extract_iri_ref(node)?;
@@ -467,72 +460,92 @@ without forced writing (--force)"
                 }
                 write!(self.output, ")")?;
             }
-            NodeKind::Literal => {
-                let mut value = String::new();
-                let mut is_long_string = false;
-                let mut annotation = LiteralAnnotation::None;
-                let mut datatype = Cow::Borrowed("http://www.w3.org/2001/XMLSchema#string");
-                for child in Self::iter_children(node)? {
-                    match NodeKind::from(&child) {
-                        NodeKind::Comment => comments.push(child),
-                        NodeKind::StringLiteral => {
-                            (value, is_long_string) = self.extract_string(child)?;
-                        }
-                        NodeKind::LangTag => {
-                            annotation =
-                                LiteralAnnotation::LangTag(child.utf8_text(self.file)?.to_string());
-                            datatype =
-                                "http://www.w3.org/1999/02/22-rdf-syntax-ns#langString".into();
-                        }
-                        NodeKind::IriRef => {
-                            let iri_ref = self.extract_iri_ref(child)?;
-                            annotation = LiteralAnnotation::IriRef(iri_ref.clone());
-                            datatype = iri_ref.into();
-                        }
-                        NodeKind::PrefixedName => {
-                            let PrefixedResource { prefix, local, iri } =
-                                self.extract_prefixed_name(child)?;
-                            annotation = LiteralAnnotation::PrefixedName(prefix, local);
-                            datatype = iri.into();
-                        }
-                        NodeKind::At
-                        | NodeKind::DataType
-                        | NodeKind::IriStart
-                        | NodeKind::IriEnd => (),
-                        _ => bail!("Unexpected literal child: {}", child.to_sexp()),
+            _ => self.fmt_any_literal(node, comments)?,
+        }
+        Ok(())
+    }
+
+    fn fmt_string_literal<'b>(
+        &mut self,
+        node: Node<'b>,
+        comments: &mut Vec<Node<'b>>,
+    ) -> Result<()> {
+        enum LiteralAnnotation {
+            None,
+            LangTag(String),
+            IriRef(String),
+            PrefixedName(String, String),
+        }
+
+        debug_assert_eq!(NodeKind::from(&node), NodeKind::Literal);
+        let mut value = String::new();
+        let mut is_long_string = false;
+        let mut annotation = LiteralAnnotation::None;
+        let mut datatype = Cow::Borrowed("http://www.w3.org/2001/XMLSchema#string");
+        for child in Self::iter_children(node)? {
+            match NodeKind::from(&child) {
+                NodeKind::Comment => comments.push(child),
+                NodeKind::StringLiteral => {
+                    (value, is_long_string) = self.extract_string(child)?;
+                }
+                NodeKind::LangTag => {
+                    annotation =
+                        LiteralAnnotation::LangTag(child.utf8_text(self.file)?.to_string());
+                    datatype = "http://www.w3.org/1999/02/22-rdf-syntax-ns#langString".into();
+                }
+                NodeKind::IriRef => {
+                    let iri_ref = self.extract_iri_ref(child)?;
+                    annotation = LiteralAnnotation::IriRef(iri_ref.clone());
+                    datatype = iri_ref.into();
+                }
+                NodeKind::PrefixedName => {
+                    let PrefixedResource { prefix, local, iri } =
+                        self.extract_prefixed_name(child)?;
+                    annotation = LiteralAnnotation::PrefixedName(prefix, local);
+                    datatype = iri.into();
+                }
+                NodeKind::At | NodeKind::DataType | NodeKind::IriStart | NodeKind::IriEnd => (),
+                _ => bail!("Unexpected literal child: {}", child.to_sexp()),
+            }
+        }
+        match datatype.as_ref() {
+            "http://www.w3.org/2001/XMLSchema#boolean"
+                if matches!(value.as_str(), "true" | "false") =>
+            {
+                write!(self.output, "{value}")
+            }
+            "http://www.w3.org/2001/XMLSchema#integer" if is_turtle_integer(&value) => {
+                write!(self.output, "{value}")
+            }
+            "http://www.w3.org/2001/XMLSchema#decimal" if is_turtle_decimal(&value) => {
+                write!(self.output, "{value}")
+            }
+            "http://www.w3.org/2001/XMLSchema#double" if is_turtle_double(&value) => {
+                write!(self.output, "{value}")
+            }
+            _ => {
+                if is_long_string {
+                    write!(self.output, "\"\"\"{value}\"\"\"")?;
+                } else {
+                    write!(self.output, "\"{value}\"")?;
+                }
+                match annotation {
+                    LiteralAnnotation::None => Ok(()),
+                    LiteralAnnotation::LangTag(l) => write!(self.output, "@{l}"),
+                    LiteralAnnotation::IriRef(i) => write!(self.output, "^^<{i}>"),
+                    LiteralAnnotation::PrefixedName(prefix, local) => {
+                        write!(self.output, "^^{prefix}:{local}")
                     }
                 }
-                match datatype.as_ref() {
-                    "http://www.w3.org/2001/XMLSchema#boolean"
-                        if matches!(value.as_str(), "true" | "false") =>
-                    {
-                        write!(self.output, "{value}")
-                    }
-                    "http://www.w3.org/2001/XMLSchema#integer" if is_turtle_integer(&value) => {
-                        write!(self.output, "{value}")
-                    }
-                    "http://www.w3.org/2001/XMLSchema#decimal" if is_turtle_decimal(&value) => {
-                        write!(self.output, "{value}")
-                    }
-                    "http://www.w3.org/2001/XMLSchema#double" if is_turtle_double(&value) => {
-                        write!(self.output, "{value}")
-                    }
-                    _ => {
-                        if is_long_string {
-                            write!(self.output, "\"\"\"{value}\"\"\"")?;
-                        } else {
-                            write!(self.output, "\"{value}\"")?;
-                        }
-                        match annotation {
-                            LiteralAnnotation::None => Ok(()),
-                            LiteralAnnotation::LangTag(l) => write!(self.output, "@{l}"),
-                            LiteralAnnotation::IriRef(i) => write!(self.output, "^^<{i}>"),
-                            LiteralAnnotation::PrefixedName(prefix, local) => {
-                                write!(self.output, "^^{prefix}:{local}")
-                            }
-                        }
-                    }
-                }?;
+            }
+        }?;
+        Ok(())
+    }
+
+    fn fmt_any_literal<'b>(&mut self, node: Node<'b>, comments: &mut Vec<Node<'b>>) -> Result<()> {
+        match NodeKind::from(&node) {
+            NodeKind::Literal => {
+                self.fmt_string_literal(node, comments)?;
             }
             NodeKind::IntegerLiteral => {
                 let value = node.utf8_text(self.file)?;
