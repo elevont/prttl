@@ -673,10 +673,10 @@ without forced writing (--force)"
     /// That output string is ready to be printed into a `*.ttl` file,
     /// though without language tag or datatype.
     /// The second output indicates whether it is a multi-line string.
-    fn extract_string(&self, node: Node<'_>) -> Result<(String, bool)> {
-        debug_assert_eq!(NodeKind::from(&node), NodeKind::StringLiteral);
+    fn extract_string(&self, string_lit_node: Node<'_>) -> Result<(String, bool)> {
+        debug_assert_eq!(NodeKind::from(&string_lit_node), NodeKind::StringLiteral);
 
-        let raw = node.utf8_text(self.file)?;
+        let raw = string_lit_node.utf8_text(self.file)?;
         if raw.starts_with("\"\"\"") || raw.starts_with("'''") {
             // We normalize the multi-lines string
             let mut raw = &raw[3..raw.len() - 3];
@@ -752,10 +752,10 @@ without forced writing (--force)"
     /// Writes out the supplied comments.
     fn fmt_comments<'b>(
         &mut self,
-        nodes: impl IntoIterator<Item = Node<'b>>,
+        comment_nodes: impl IntoIterator<Item = Node<'b>>,
         inline: bool,
     ) -> Result<()> {
-        let comments = nodes
+        let comments = comment_nodes
             .into_iter()
             .map(|node| Ok(node.utf8_text(self.file)?[1..].trim_end()))
             .collect::<Result<Vec<_>>>()?;
