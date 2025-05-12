@@ -2,79 +2,8 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
-use anyhow::{anyhow, bail, Result};
-use tree_sitter::Node;
-
-/// The order of the variants in this enum
-/// determines the sorting order.
-#[derive(PartialEq, Eq, PartialOrd, Ord, Debug)]
-pub enum NodeKind {
-    Base,
-    Comment,
-    A,
-    PredicateObjects,
-    Prefix,
-    PrefixedName,
-    PNPrefix,
-    IriRef,
-    Collection,
-    BlankNodeAnonymous,
-    BlankNodeLabel,
-    BlankNodePropertyList,
-    LangTag,
-    Literal,
-    BooleanLiteral,
-    IntegerLiteral,
-    DecimalLiteral,
-    DoubleLiteral,
-    StringLiteral,
-    Triples,
-    TurtleDoc,
-    At,
-    DataType,
-    IriStart,
-    IriEnd,
-    None,
-}
-
-impl From<&str> for NodeKind {
-    fn from(kind: &str) -> Self {
-        match kind {
-            "base" => Self::Base,
-            "comment" => Self::Comment,
-            "iriref" => Self::IriRef,
-            "predicate_objects" => Self::PredicateObjects,
-            "prefix" => Self::Prefix,
-            "prefixed_name" => Self::PrefixedName,
-            "pn_prefix" => Self::PNPrefix,
-            "a" => Self::A,
-            "@" => Self::At,
-            "^^" => Self::DataType,
-            "<" => Self::IriStart,
-            ">" => Self::IriEnd,
-            "anon" => Self::BlankNodeAnonymous,
-            "blank_node_label" => Self::BlankNodeLabel,
-            "blank_node_property_list" => Self::BlankNodePropertyList,
-            "collection" => Self::Collection,
-            "langtag" => Self::LangTag,
-            "literal" => Self::Literal,
-            "string" => Self::StringLiteral,
-            "integer" => Self::IntegerLiteral,
-            "boolean" => Self::BooleanLiteral,
-            "decimal" => Self::DecimalLiteral,
-            "double" => Self::DoubleLiteral,
-            "triples" => Self::Triples,
-            "turtle_doc" => Self::TurtleDoc,
-            _ => Self::None,
-        }
-    }
-}
-
-impl<'tree> From<&Node<'tree>> for NodeKind {
-    fn from(node: &Node<'tree>) -> Self {
-        Self::from(node.kind())
-    }
-}
+use std::io::Error;
+use std::io::Result;
 
 pub struct StringDecoder<'a> {
     input: &'a str,
@@ -82,6 +11,7 @@ pub struct StringDecoder<'a> {
 }
 
 impl<'a> StringDecoder<'a> {
+    #[must_use]
     pub const fn new(input: &'a str) -> Self {
         Self { input, i: 0 }
     }
@@ -124,13 +54,17 @@ pub fn decode_echar(c: char) -> Result<char> {
         '"' => Ok('"'),
         '\'' => Ok('\''),
         '\\' => Ok('\\'),
-        _ => bail!("The escaped character '\\{c}' is not valid"),
+        _ => Err(Error::other(format!(
+            "The escaped character '\\{c}' is not valid"
+        ))),
     }
 }
 
 pub fn decode_uchar(input: &str) -> Result<char> {
     char::from_u32(u32::from_str_radix(&input[2..], 16).unwrap()).ok_or_else(|| {
-        anyhow!("The escaped unicode character '{input}' is not encoding a valid unicode character")
+        Error::other(format!(
+            "The escaped Unicode character '{input}' is not encoding a valid Unicode character"
+        ))
     })
 }
 
@@ -189,10 +123,10 @@ pub fn is_turtle_double(value: &str) -> bool {
     (with_before || with_after) && !value.is_empty() && value.iter().all(u8::is_ascii_digit)
 }
 
-#[derive(Eq, PartialEq)]
-pub enum RootContext {
-    Start,
-    Prefixes,
-    Triples,
-    Comment,
-}
+// #[derive(Eq, PartialEq)]
+// pub enum RootContext {
+//     Start,
+//     Prefixes,
+//     Triples,
+//     Comment,
+// }

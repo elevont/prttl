@@ -2,14 +2,17 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
-use anyhow::{bail, Context, Result};
+// use anyhow::{bail, Context, Result};
 use clap::Parser;
 use diffy::{create_patch, PatchFormatter};
 use std::ffi::OsStr;
 use std::fs;
 use std::path::{Path, PathBuf};
 use std::process::ExitCode;
-use turtlefmt::{format_turtle, formatter::FormatOptions};
+use std::rc::Rc;
+use turtlefmt::formatter::{Error, FilesListErrorType};
+use turtlefmt::parser;
+use turtlefmt::{formatter::format, options::FormatOptions};
 
 /// Apply a consistent formatting to a Turtle file
 #[derive(Parser, Debug)]
@@ -22,61 +25,88 @@ struct Args {
     #[arg(long)]
     check: bool,
     /// Number of spaces per level of indentation
-    #[arg(long, default_value = "4")]
+    #[arg(long, default_value = "2")]
     indentation: usize,
-    /// Whether to apply formatting options that try to minimize diffs
-    /// between different versions of the same file.
-    /// This additionally sorts subjects, predicates and objects,
-    /// and it puts each of those onto a new line.
-    ///
-    /// This might be useful if the file is stored on an SCM like git,
-    /// and you can ensure that this tool is applied before each commit.
-    ///
-    /// NOTE: This (because of how the sorting works)
-    ///       does not play well with comments;
-    ///       We thus recommend to only use this
-    ///       if you are not using comments,
-    ///       or if you convert the comments into RDF triples.
-    #[arg(long)]
-    diff_optimized: bool,
-    /// Whether to cleanup/unify empty lines used as dividers.
-    /// This ensures that there is exactly one empty line
-    /// before and after each subject,
-    /// and that there is none anywhere else.
-    #[arg(long)]
-    cleanup_dividing_empty_lines: bool,
+    // /// Whether to apply formatting options that try to minimize diffs
+    // /// between different versions of the same file.
+    // /// This additionally sorts subjects, predicates and objects,
+    // /// and it puts each of those onto a new line.
+    // ///
+    // /// This might be useful if the file is stored on an SCM like git,
+    // /// and you can ensure that this tool is applied before each commit.
+    // ///
+    // /// NOTE: This (because of how the sorting works)
+    // ///       does not play well with comments;
+    // ///       We thus recommend to only use this
+    // ///       if you are not using comments,
+    // ///       or if you convert the comments into RDF triples.
+    // #[arg(long)]
+    // diff_optimized: bool,
+    // /// Whether to cleanup/unify empty lines used as dividers.
+    // /// This ensures that there is exactly one empty line
+    // /// before and after each subject,
+    // /// and that there is none anywhere else.
+    // #[arg(long)]
+    // cleanup_dividing_empty_lines: bool,
     /// Whether to force-write the output,
     /// even if potential issues with the formatting have been detected.
     #[arg(long)]
     force: bool,
+    /// Whether to disable sorting of blank nodes
+    /// using their `prtyr:sortingId` value, if any.
+    ///
+    /// [`prtyr`](https://codeberg.org/elevont/prtyr)
+    /// is an ontology concerned with
+    /// [RDF Pretty Printing](https://www.w3.org/DesignIssues/Pretty.html).
+    #[arg(long)]
+    no_prtyr_sorting: bool,
+    /// Whether to use SPARQL-ish syntax for base and prefix,
+    /// or the traditional Turtle syntax.
+    ///
+    /// - SPARQL-ish:
+    ///
+    ///   ```turtle
+    ///   BASE <http://example.com/>
+    ///   PREFIX foaf: <http://xmlns.com/foaf/0.1/>
+    ///   ```
+    ///
+    /// - Traditional Turtle:
+    ///
+    ///   ```turtle
+    ///   @base <http://example.com/> .
+    ///   @prefix foaf: <http://xmlns.com/foaf/0.1/> .
+    ///   ```
+    #[arg(long)]
+    pub sparql_syntax: bool,
+    /// Whether use labels for all blank nodes,
+    /// or rather maximize nesting of them.
+    ///
+    /// NOTE That blank nodes referenced in more then one place can never be nested.
+    #[arg(long)]
+    pub label_all_blank_nodes: bool,
 }
 
 impl From<&Args> for FormatOptions {
     fn from(args: &Args) -> Self {
-        let indentation = args.indentation;
+        let indentation = " ".repeat(args.indentation);
         let force = args.force;
-        if args.diff_optimized {
-            Self {
-                indentation,
-                sort_terms: true,
-                new_lines_for_easy_diff: true,
-                single_object_on_new_line: false,
-                cleanup_dividing_empty_lines: args.cleanup_dividing_empty_lines,
-                force,
-            }
-        } else {
-            Self {
-                indentation,
-                force,
-                ..Default::default()
-            }
+        let prtyr_sorting = !args.no_prtyr_sorting;
+        let sparql_syntax = args.sparql_syntax;
+        let max_nesting = !args.label_all_blank_nodes;
+        Self {
+            indentation,
+            single_object_on_new_line: false,
+            force,
+            prtyr_sorting,
+            sparql_syntax,
+            max_nesting,
         }
     }
 }
 
-fn main() -> Result<ExitCode> {
+fn main() -> Result<ExitCode, Error> {
     let args = Args::parse();
-    let options = (&args).into();
+    let options: Rc<FormatOptions> = Rc::new((&args).into());
     let mut exit_code = ExitCode::SUCCESS;
 
     let mut files = Vec::new();
@@ -86,17 +116,15 @@ fn main() -> Result<ExitCode> {
         } else if source.is_dir() {
             add_files_with_suffix(&source, OsStr::new("ttl"), &mut files)?;
         } else {
-            bail!(
-                "The target to format {} does not seem to exist",
-                source.display()
-            );
+            return Err(Error::TargetFileDoesNotExist(source));
         }
     }
 
     for file in files {
         let original = fs::read_to_string(&file)
-            .with_context(|| format!("Error while reading {}", file.display()))?;
-        let formatted = format_turtle(&original, &options)?;
+            .map_err(|_err| Error::FailedToReadTargetFile(file.clone()))?;
+        let input = parser::parse(original.as_bytes())?;
+        let formatted = format(&input, Rc::<_>::clone(&options))?;
         if original == formatted {
             // Nothing to do
             continue;
@@ -107,16 +135,29 @@ fn main() -> Result<ExitCode> {
             println!("{}", PatchFormatter::new().with_color().fmt_patch(&patch));
             exit_code = ExitCode::from(65);
         } else {
-            fs::write(&file, formatted)?;
+            fs::write(&file, formatted).map_err(|err| Error::FailedToWriteFormattedFile(file))?;
         }
     }
     Ok(exit_code)
 }
 
-fn add_files_with_suffix(dir: &Path, extension: &OsStr, files: &mut Vec<PathBuf>) -> Result<()> {
-    for entry in fs::read_dir(dir)? {
-        let entry = entry?;
-        let entry_type = entry.file_type()?;
+fn add_files_with_suffix(
+    dir: &Path,
+    extension: &OsStr,
+    files: &mut Vec<PathBuf>,
+) -> Result<(), Error> {
+    for entry in fs::read_dir(dir).map_err(|err| {
+        Error::FailedToListFilesInInputDir(dir.to_path_buf(), FilesListErrorType::ReadDir)
+    })? {
+        let entry = entry.map_err(|err| {
+            Error::FailedToListFilesInInputDir(dir.to_path_buf(), FilesListErrorType::ExtractEntry)
+        })?;
+        let entry_type = entry.file_type().map_err(|err| {
+            Error::FailedToListFilesInInputDir(
+                dir.to_path_buf(),
+                FilesListErrorType::EvaluateFileType,
+            )
+        })?;
         if entry_type.is_file() {
             let file = entry.path();
             if file.extension() == Some(extension) {

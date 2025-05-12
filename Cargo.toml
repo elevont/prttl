@@ -36,11 +36,16 @@ print_stdout = "warn"
 print_stderr = "warn"
 #default_trait_access = "allow"
 #option_if_let_else = "allow"
+struct_excessive_bools = "allow"
 
 [dependencies]
-anyhow = { version = "1.0", default-features = false }
 clap = { version = "4.5", default-features = false, features = ["std", "derive"] }
 diffy = { version = "0.4", default-features = false }
+oxrdf = { version = "0.2", default-features = false }
+oxttl = { version = "0.1", default-features = false }
+rdf-canon = { version = "0.15", default-features = false }
+regex = { version = "1.11", default-features = false }
+thiserror = { version = "2.0", default-features = false }
 tree-sitter = { version = "0.25", default-features = false, features = ["std"] }
 
 [dev-dependencies]
