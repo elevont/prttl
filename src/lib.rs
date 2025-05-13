@@ -3,9 +3,10 @@
 // SPDX-License-Identifier: Apache-2.0
 
 pub mod ast;
+pub mod compare;
 pub mod context;
-pub mod decoders;
 pub mod formatter;
 pub mod input;
 pub mod options;
 pub mod parser;
+pub mod vocab;

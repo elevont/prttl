@@ -6,10 +6,12 @@ use std::cell::RefCell;
 use std::cmp::Ordering;
 use std::collections::HashMap;
 use std::collections::HashSet;
+use std::convert::Infallible;
 use std::hash::Hash;
 use std::rc::Rc;
 use std::sync::LazyLock;
 
+use oxrdf::vocab::rdf;
 use oxrdf::BlankNodeRef;
 use oxrdf::Graph;
 use oxrdf::LiteralRef;
@@ -17,28 +19,12 @@ use oxrdf::NamedNodeRef;
 use oxrdf::SubjectRef;
 use oxrdf::TermRef;
 use oxrdf::TripleRef;
-use oxrdf::{NamedNode, Term};
 
+use crate::compare;
 use crate::input::Input;
+use crate::options::FormatOptions;
 
-const NS_RDF: &str = "http://www.w3.org/1999/02/22-rdf-syntax-ns#";
-
-static NN_RDF_FIRST: LazyLock<NamedNode> =
-    LazyLock::new(|| NamedNode::new(format!("{NS_RDF}first")).unwrap());
-static NN_RDF_REST: LazyLock<NamedNode> =
-    LazyLock::new(|| NamedNode::new(format!("{NS_RDF}rest")).unwrap());
-static NN_RDF_NIL: LazyLock<NamedNode> =
-    LazyLock::new(|| NamedNode::new(format!("{NS_RDF}nil")).unwrap());
-pub static NN_RDF_TYPE: LazyLock<NamedNode> =
-    LazyLock::new(|| NamedNode::new(format!("{NS_RDF}type")).unwrap());
-static NN_RDF_LIST: LazyLock<NamedNode> =
-    LazyLock::new(|| NamedNode::new(format!("{NS_RDF}List")).unwrap());
-
-static T_RDF_FIRST: LazyLock<Term> = LazyLock::new(|| Term::NamedNode(NN_RDF_FIRST.clone()));
-static T_RDF_REST: LazyLock<Term> = LazyLock::new(|| Term::NamedNode(NN_RDF_REST.clone()));
-static T_RDF_NIL: LazyLock<Term> = LazyLock::new(|| Term::NamedNode(NN_RDF_NIL.clone()));
-static T_RDF_TYPE: LazyLock<Term> = LazyLock::new(|| Term::NamedNode(NN_RDF_TYPE.clone()));
-static T_RDF_LIST: LazyLock<Term> = LazyLock::new(|| Term::NamedNode(NN_RDF_LIST.clone()));
+static T_RDF_LIST: LazyLock<TermRef> = LazyLock::new(|| TermRef::NamedNode(rdf::LIST));
 
 #[derive(Debug, PartialEq, Eq, Hash)]
 pub enum TSubject<'graph> {
@@ -47,7 +33,7 @@ pub enum TSubject<'graph> {
     // BlankNodeAnonymous(TBlankNode<'graph>),
     BlankNodeAnonymous(TBlankNode<'graph>),
     Collection(TCollection<'graph>),
-    Triple((Box<TSubject<'graph>>, TPredicate<'graph>, TObject<'graph>)),
+    Triple(Box<TTriple<'graph>>),
 }
 
 impl<'graph> From<SubjectRef<'graph>> for TSubject<'graph> {
@@ -57,6 +43,18 @@ impl<'graph> From<SubjectRef<'graph>> for TSubject<'graph> {
             SubjectRef::BlankNode(blank_node_ref) => {
                 Self::BlankNodeLabel(TBlankNodeRef(blank_node_ref))
             }
+        }
+    }
+}
+
+impl From<&TSubject<'_>> for u8 {
+    fn from(value: &TSubject<'_>) -> Self {
+        match value {
+            TSubject::NamedNode(_) => 0,
+            TSubject::BlankNodeLabel(_) => 4,
+            TSubject::BlankNodeAnonymous(_) => 3,
+            TSubject::Collection(_) => 2,
+            TSubject::Triple(_) => 1,
         }
     }
 }
@@ -179,20 +177,14 @@ pub enum TObject<'graph> {
     BlankNodeAnonymous(TBlankNode<'graph>),
     Collection(TCollection<'graph>),
     Literal(TLiteralRef<'graph>),
-    Triple(
-        (
-            Box<TSubject<'graph>>,
-            TPredicate<'graph>,
-            Box<TObject<'graph>>,
-        ),
-    ),
+    Triple(Box<TTriple<'graph>>),
 }
 
 impl<'graph> From<TermRef<'graph>> for TObject<'graph> {
     fn from(other: TermRef<'graph>) -> Self {
         match other {
             TermRef::NamedNode(named_node_ref) => {
-                if named_node_ref == NN_RDF_NIL.as_ref() {
+                if named_node_ref == rdf::NIL {
                     Self::Collection(TCollection::Empty)
                 } else {
                     Self::NamedNode(named_node_ref)
@@ -202,6 +194,19 @@ impl<'graph> From<TermRef<'graph>> for TObject<'graph> {
                 Self::BlankNodeLabel(TBlankNodeRef(blank_node_ref))
             }
             TermRef::Literal(literal_ref) => Self::Literal(TLiteralRef(literal_ref)),
+        }
+    }
+}
+
+impl From<&TObject<'_>> for u8 {
+    fn from(value: &TObject<'_>) -> Self {
+        match value {
+            TObject::NamedNode(_) => 0,
+            TObject::BlankNodeLabel(_) => 5,
+            TObject::BlankNodeAnonymous(_) => 4,
+            TObject::Collection(_) => 3,
+            TObject::Literal(_) => 2,
+            TObject::Triple(_) => 1,
         }
     }
 }
@@ -218,6 +223,13 @@ pub enum TCollection<'graph> {
     Empty,
 }
 
+#[derive(Debug, PartialEq, Eq, Hash)]
+pub struct TTriple<'graph>(
+    pub TSubject<'graph>,
+    pub TPredicate<'graph>,
+    pub TObject<'graph>,
+);
+
 trait PredicatesStore<'graph> {
     fn get_predicates_mut<'us>(&'us mut self) -> &'us mut Vec<TPredicateCont<'graph>>
     where
@@ -230,7 +242,7 @@ trait PredicatesStore<'graph> {
         nestable_blank_nodes: &HashSet<BlankNodeRef<'graph>>,
         col_involved_triples: &Vec<TripleRef<'graph>>,
         level_triples: impl Iterator<Item = TripleRef<'graph>>,
-    ) -> BoxResult<()>
+    ) -> Result<(), Infallible>
     where
         'graph: 'us,
     {
@@ -322,16 +334,66 @@ impl std::hash::Hash for TBlankNode<'_> {
     }
 }
 
+pub struct SortingContext<'sorting> {
+    pub options: Rc<FormatOptions>,
+    pub graph: &'sorting Graph,
+}
+
 #[derive(Debug)]
 pub struct TRoot<'graph> {
     pub subjects: Vec<TSubjectCont<'graph>>,
 }
 
-impl TRoot<'_> {
+impl<'graph> TRoot<'graph> {
     #[must_use]
     pub const fn new() -> Self {
         Self {
             subjects: Vec::new(),
+        }
+    }
+
+    fn sort_collection(collection: &mut TCollectionRef<'graph>, context: &SortingContext<'graph>) {
+        Self::sort_objects(&mut collection.rest, context);
+    }
+
+    fn sort_blank_node(blank_node: &mut TBlankNode<'graph>, context: &SortingContext<'graph>) {
+        Self::sort_predicates(&mut blank_node.predicates, context);
+    }
+
+    fn sort_object(object: &mut TObject<'graph>, context: &SortingContext<'graph>) {
+        match object {
+            TObject::Collection(TCollection::WithContent(ref mut collection)) => {
+                Self::sort_collection(collection, context);
+            }
+            TObject::BlankNodeAnonymous(ref mut blank_node) => {
+                Self::sort_blank_node(blank_node, context);
+            }
+            _ => (),
+        }
+    }
+
+    fn sort_objects(objects: &mut Vec<TObject<'graph>>, context: &SortingContext<'graph>) {
+        objects.sort_by(|a, b| compare::t_obj(context, a, b));
+        for object in objects.iter_mut() {
+            Self::sort_object(object, context);
+        }
+    }
+
+    fn sort_predicates(
+        predicates: &mut Vec<TPredicateCont<'graph>>,
+        context: &SortingContext<'graph>,
+    ) {
+        predicates.sort_by(|a, b| compare::t_pred_cont(context, a, b));
+        for predicate_cont in predicates {
+            Self::sort_objects(&mut predicate_cont.objects, context);
+        }
+    }
+
+    pub fn sort(&mut self, context: &SortingContext<'graph>) {
+        self.subjects
+            .sort_by(|a, b| compare::t_subj_cont(context, a, b));
+        for subject_cont in &mut self.subjects {
+            Self::sort_predicates(&mut subject_cont.predicates, context);
         }
     }
 }
@@ -340,38 +402,6 @@ impl Default for TRoot<'_> {
     fn default() -> Self {
         Self::new()
     }
-}
-
-// enum CollectionEntry<'graph> {
-//     Between(TermRef<'graph>, BlankNodeRef<'graph>),
-//     End(TermRef<'graph>),
-//     Empty,
-// }
-
-fn remove_sorted_indices<T>(
-    v: impl IntoIterator<Item = T>,
-    indices: impl IntoIterator<Item = usize>,
-) -> Vec<T> {
-    let v = v.into_iter();
-    let mut indices = indices.into_iter();
-    let mut i = match indices.next() {
-        None => return v.collect(),
-        Some(i) => i,
-    };
-    let (min, max) = v.size_hint();
-    let mut result = Vec::with_capacity(max.unwrap_or(min));
-
-    for (j, x) in v.into_iter().enumerate() {
-        if j == i {
-            if let Some(idx) = indices.next() {
-                i = idx;
-            }
-        } else {
-            result.push(x);
-        }
-    }
-
-    result
 }
 
 fn extract_duplicates<'graph>(
@@ -389,82 +419,6 @@ fn extract_duplicates<'graph>(
     seen_at_least_twice.into_iter().collect()
 }
 
-// fn extract_collection_entries<'graph>(
-//     input: &'graph Input,
-//     blank_node_subjects: &Vec<BlankNodeRef<'graph>>,
-//     blank_node_objects: &Vec<BlankNodeRef<'graph>>,
-// ) -> HashMap<BlankNodeRef<'graph>, CollectionEntry<'graph>> {
-//     let referenced_multiple_times = extract_duplicates(blank_node_objects);
-
-//     let mut collection_entries = HashMap::new();
-//     let mut blank_node_list_subjects_indices = vec![];
-//     for (sidx, subj) in blank_node_subjects.iter().enumerate() {
-//         let first_opt = input
-//             .graph
-//             .object_for_subject_predicate(*subj, NN_RDF_FIRST.as_ref());
-//         if let Some(first) = first_opt {
-//             let rest_opt = input
-//                 .graph
-//                 .object_for_subject_predicate(*subj, NN_RDF_REST.as_ref());
-//             if let Some(rest_val) = rest_opt {
-//                 let triples = input.graph.triples_for_subject(*subj).count();
-//                 let mut is_list_entry = false;
-//                 if triples == 2 {
-//                     is_list_entry = true;
-//                 } else if triples == 3 {
-//                     let type_opt = input
-//                         .graph
-//                         .object_for_subject_predicate(*subj, NN_RDF_TYPE.as_ref());
-//                     if let Some(TermRef::NamedNode(type_val)) = type_opt {
-//                         if type_val == NN_RDF_LIST.as_ref() {
-//                             is_list_entry = true;
-//                         }
-//                     }
-//                 }
-//                 // ... Every other case means that there are extra triples in the collection/list entry,
-//                 // besides the ones required for making it a collection/list.
-//                 // If we would convert it into a Turtle syntax list,
-//                 // these extra entries would be lost or have a (bank-node-)subject that would then be detached.
-
-//                 if is_list_entry {
-//                     if referenced_multiple_times.contains(subj) {
-//                         // We can not convert to a Turtle-syntax collection
-//                         // if a single (or more) element of the collection
-//                         // is referenced more then once.
-//                         // If one link in the collection is missing,
-//                         // it will fail to assembled as a whole,
-//                         // and thus will remain as a raw RDF list,
-//                         // rather then a collection in Turtle syntax.
-//                         continue;
-//                     }
-//                     let collection_entry = match rest_val {
-//                         TermRef::BlankNode(rest) => {
-//                             CollectionEntry::Between(first, rest)
-//                         }
-//                         TermRef::NamedNode(rest) => {
-//                             if rest == NN_RDF_NIL.as_ref() {
-//                                 CollectionEntry::End(first)
-//                             } else {
-//                                 // TODO FIXME Return an error
-//                                 continue;
-//                             }
-//                         }
-//                         TermRef::Literal(_rest) => {
-//                             continue;
-//                         }
-//                     };
-//                     blank_node_list_subjects_indices.push(sidx);
-//                     collection_entries.insert(*subj, collection_entry);
-//                 } else {
-//                     // TODO;
-//                 }
-//             }
-//         }
-//     }
-//     remove_sorted_indices(blank_node_subjects, blank_node_list_subjects_indices);
-//     collection_entries
-// }
-
 fn extract_collection<'graph>(
     g_main: &'graph Graph,
     involved_triples: &Rc<RefCell<Vec<TripleRef<'graph>>>>,
@@ -475,38 +429,34 @@ fn extract_collection<'graph>(
     let mut involved_triples = involved_triples.borrow_mut();
     loop {
         let firsts = g_main
-            .objects_for_subject_predicate(cur, NN_RDF_FIRST.as_ref())
+            .objects_for_subject_predicate(cur, rdf::FIRST)
             .collect::<Vec<_>>();
         if firsts.len() != 1 {
             return None;
         }
         let first = *firsts.first().unwrap();
         let cur_subj = SubjectRef::BlankNode(cur);
-        involved_triples.push(TripleRef::new(cur_subj, NN_RDF_FIRST.as_ref(), first));
+        involved_triples.push(TripleRef::new(cur_subj, rdf::FIRST, first));
         col.push(first);
 
         let rests = g_main
-            .objects_for_subject_predicate(cur, NN_RDF_REST.as_ref())
+            .objects_for_subject_predicate(cur, rdf::REST)
             .collect::<Vec<_>>();
         if rests.len() != 1 {
             return None;
         }
         let rest = *rests.first().unwrap();
-        involved_triples.push(TripleRef::new(cur_subj, NN_RDF_REST.as_ref(), rest));
+        involved_triples.push(TripleRef::new(cur_subj, rdf::REST, rest));
 
         let types = g_main
-            .objects_for_subject_predicate(cur, NN_RDF_TYPE.as_ref())
+            .objects_for_subject_predicate(cur, rdf::TYPE)
             .collect::<Vec<_>>();
         if types.len() > 1 && cur != start {
             return None;
         }
         let mut list_native_triples = 2;
-        if types.contains(&T_RDF_LIST.as_ref()) {
-            involved_triples.push(TripleRef::new(
-                cur_subj,
-                NN_RDF_TYPE.as_ref(),
-                T_RDF_LIST.as_ref(),
-            ));
+        if types.contains(&T_RDF_LIST) {
+            involved_triples.push(TripleRef::new(cur_subj, rdf::TYPE, *T_RDF_LIST));
             list_native_triples += 1;
         }
         if cur != start {
@@ -521,7 +471,7 @@ fn extract_collection<'graph>(
                 cur = bn_rest;
             }
             TermRef::NamedNode(nn_rest) => {
-                if nn_rest == NN_RDF_NIL.as_ref() {
+                if nn_rest == rdf::NIL {
                     break;
                 }
                 return None;
@@ -551,14 +501,6 @@ fn evaluate_nestable_blank_nodes(g_main: &Graph) -> HashSet<BlankNodeRef<'_>> {
     subject_bns.into_iter().collect()
 }
 
-// fn nest(
-//     mut g_main: Rc<RefCell<Graph>>,
-//     non_empty_valid_cols: &HashMap<BlankNode, Vec<Term>>,
-//     nestable_blank_nodes: &HashSet<BlankNode>,
-// ) {
-//     TODO;
-// }
-
 fn extract_non_empty_collections<'graph>(
     g_main: &'graph Graph,
     involved_triples: &Rc<RefCell<Vec<TripleRef<'graph>>>>,
@@ -567,9 +509,9 @@ fn extract_non_empty_collections<'graph>(
     {
         for triple in g_main {
             if let SubjectRef::BlankNode(bn_subj) = triple.subject {
-                if triple.predicate == NN_RDF_FIRST.as_ref() {
+                if triple.predicate == rdf::FIRST {
                     let rest_refs_to_subj = g_main
-                        .subjects_for_predicate_object(NN_RDF_REST.as_ref(), bn_subj)
+                        .subjects_for_predicate_object(rdf::REST, bn_subj)
                         .next()
                         .is_some();
                     if !rest_refs_to_subj {
@@ -591,47 +533,6 @@ fn extract_non_empty_collections<'graph>(
     cols
 }
 
-fn filter_blank_node_subjects<'a>(subjects: &Vec<SubjectRef<'a>>) -> Vec<BlankNodeRef<'a>> {
-    subjects
-        .iter()
-        .filter_map(|subject| match subject {
-            SubjectRef::BlankNode(blank_node) => Some(*blank_node),
-            SubjectRef::NamedNode(_) => None,
-        })
-        .collect()
-}
-
-fn filter_blank_node_objects(input: &Input) -> Vec<BlankNodeRef<'_>> {
-    input
-        .graph
-        .iter()
-        .filter_map(|triple| {
-            if let TermRef::BlankNode(blank_node) = triple.object {
-                Some(blank_node)
-            } else {
-                None
-            }
-        })
-        .collect()
-
-    // triple.subject, triple.predicate, triple.object)
-
-    // let mut blank_nodes = vec![];
-    // for predicates in input.graph.iter().map(|triple| triple.object) {
-    //     for objects in predicates.values() {
-    //         for object in objects {
-    //             if object.is_blank_node() {
-    //                 blank_nodes.push(object.clone());
-    //             }
-    //         }
-    //     }
-    // }
-    // blank_nodes
-}
-
-type BoxError = Box<dyn std::error::Error + Send + Sync + 'static>;
-type BoxResult<T> = Result<T, BoxError>;
-
 pub fn subjects(graph: &Graph) -> impl Iterator<Item = SubjectRef<'_>> + '_ {
     let mut seen = HashSet::new();
     graph.iter().filter_map(move |triple| {
@@ -646,16 +547,13 @@ pub fn subjects(graph: &Graph) -> impl Iterator<Item = SubjectRef<'_>> + '_ {
 pub fn construct_tree<'tree, 'graph>(
     tree_root: &'tree mut TRoot<'graph>,
     input: &'graph Input,
-) -> BoxResult<()>
+) -> Result<(), Infallible>
 where
     'graph: 'tree,
 {
-    // let g_main = Rc::new(RefCell::new(input.graph.clone()));
-
     let col_involved_triples = Rc::new(RefCell::new(Vec::new()));
     let non_empty_valid_cols = extract_non_empty_collections(&input.graph, &col_involved_triples);
     let nestable_blank_nodes = evaluate_nestable_blank_nodes(&input.graph);
-    // nest(g_main.clone(), &non_empty_valid_cols, &nestable_blank_nodes);
 
     for subj in subjects(&input.graph) {
         if let SubjectRef::BlankNode(bn) = subj {

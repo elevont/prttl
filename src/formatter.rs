@@ -3,15 +3,14 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::ast::{
-    construct_tree, TBlankNode, TBlankNodeRef, TCollection, TLiteralRef, TObject, TPredicateCont,
-    TRoot, TSubject, TSubjectCont, NN_RDF_TYPE,
+    construct_tree, SortingContext, TBlankNode, TBlankNodeRef, TCollection, TLiteralRef, TObject,
+    TPredicateCont, TRoot, TSubject, TSubjectCont,
 };
 use crate::context::Context;
 use crate::options::FormatOptions;
 use crate::parser;
-use oxrdf::{vocab::xsd, BlankNode, BlankNodeRef, Literal, NamedNode, NamedNodeRef, Subject, Term};
+use oxrdf::{vocab::rdf, vocab::xsd, BlankNodeRef, NamedNode, NamedNodeRef};
 use regex::Regex;
-use std::cmp::Ordering;
 use std::fmt::Write;
 use std::path::PathBuf;
 use std::rc::Rc;
@@ -68,40 +67,17 @@ static PRTYR_SORTING_ID: LazyLock<NamedNode> =
 
 static RE_NAMESPACE_DIVIDER: LazyLock<Regex> = LazyLock::new(|| Regex::new("[/#]").unwrap());
 
-// struct PrefixedResource {
-//     /// The prefix; e.g. `"xsd"` or `"schema"`.
-//     pub prefix: String,
-//     /// The resources local name, normalized; e.g. `"string"` or `"Person"`.
-//     pub local: String,
-//     /// The resolved resource;
-//     /// e.g. `"http://www.w3.org/2001/XMLSchema#string"`
-//     /// or `"http://schema.org/Person"`.
-//     pub iri: String,
-// }
-
 pub fn format(input: &Input, options: Rc<FormatOptions>) -> Result<String> {
-    let mut formatted = String::new();
-    // let need_graph = options.prtyr_sorting;
-    // let input = crate::parser::parse(original.as_bytes())?;
-    // let graph = if need_graph {
-    //     let mut graph = Graph::new();
-    //     for triple in TurtleParser::new().for_reader(original.as_bytes()) {
-    //         let triple = triple?;
-    //         graph.insert(&triple);
-    //     }
-    //     Some(graph)
-    // } else {
-    //     None
-    // };
+    let mut output = String::new();
     let mut context = Context {
         indent_level: 0,
-        output: &mut formatted,
+        output: &mut output,
     };
     let mut formatter = TurtleFormatter::new(input, options);
     formatter.construct_tree();
-    println!("{:#?}", formatter.tree);
+    // println!("{:#?}", formatter.tree);
     formatter.fmt_doc(&mut context)?;
-    Ok(formatted)
+    Ok(output)
 }
 
 struct TurtleFormatter<'graph> {
@@ -115,7 +91,6 @@ impl<'graph> TurtleFormatter<'graph> {
         Self {
             input,
             options,
-            // prefixes: HashMap::new(),
             tree: TRoot::new(),
         }
     }
@@ -124,6 +99,12 @@ impl<'graph> TurtleFormatter<'graph> {
         construct_tree(&mut self.tree, self.input)
             .map_err(|err| Error::FailedToCreateTurtleStructure(err.to_string()))
             .unwrap();
+
+        let context = SortingContext {
+            options: Rc::<_>::clone(&self.options),
+            graph: &self.input.graph,
+        };
+        self.tree.sort(&context);
     }
 }
 
@@ -153,104 +134,12 @@ impl<'graph> TurtleFormatter<'graph> {
         Ok(())
     }
 
-    fn cmp_blank_nodes(a: &BlankNode, b: &BlankNode) -> Ordering {
-        a.as_str().cmp(b.as_str())
-    }
-
-    fn cmp_subj(a: &&Subject, b: &&Subject) -> Ordering {
-        match (a, b) {
-            (Subject::NamedNode(_a), Subject::BlankNode(_b)) => Ordering::Greater,
-            (Subject::BlankNode(_a), Subject::NamedNode(_b)) => Ordering::Less,
-            (Subject::NamedNode(a), Subject::NamedNode(b)) => a.cmp(b),
-            (Subject::BlankNode(a), Subject::BlankNode(b)) => Self::cmp_blank_nodes(a, b),
-        }
-    }
-
-    fn cmp_tsubj(a: &TSubject, b: &TSubject) -> Ordering {
-        // match (a, b) {
-        //     (Subject::NamedNode(_a), Subject::BlankNode(_b)) => Ordering::Greater,
-        //     (Subject::BlankNode(_a), Subject::NamedNode(_b)) => Ordering::Less,
-        //     (Subject::NamedNode(a), Subject::NamedNode(b)) => a.cmp(b),
-        //     (Subject::BlankNode(a), Subject::BlankNode(b)) => Self::cmp_blank_nodes(a, b),
-        // }
-        todo!();
-    }
-
-    fn cmp_pred(a: &&NamedNode, b: &&NamedNode) -> Ordering {
-        a.cmp(b)
-    }
-
-    fn cmp_literal(a: &Literal, b: &Literal) -> Ordering {
-        let cmp_value = a.value().cmp(b.value());
-        if cmp_value != Ordering::Equal {
-            return cmp_value;
-        }
-        let cmp_datatype = a.datatype().cmp(&b.datatype());
-        if cmp_datatype != Ordering::Equal {
-            return cmp_datatype;
-        }
-        match (a.language(), b.language()) {
-            (Some(a), Some(b)) => a.cmp(b),
-            (Some(_a), None) => Ordering::Less,
-            (None, Some(_b)) => Ordering::Greater,
-            (None, None) => Ordering::Equal,
-        }
-    }
-
-    fn cmp_obj(a: &&Term, b: &&Term) -> Ordering {
-        match (a, b) {
-            (Term::NamedNode(_a), Term::BlankNode(_b)) => Ordering::Greater,
-            (Term::BlankNode(_a), Term::NamedNode(_b)) => Ordering::Less,
-            (Term::NamedNode(a), Term::NamedNode(b)) => Self::cmp_pred(&a, &b),
-            (Term::BlankNode(a), Term::BlankNode(b)) => Self::cmp_blank_nodes(a, b),
-            (Term::NamedNode(_a), Term::Literal(_b)) => Ordering::Greater,
-            (Term::Literal(_a), Term::NamedNode(_b)) => Ordering::Less,
-            (Term::Literal(a), Term::Literal(b)) => Self::cmp_literal(a, b),
-            (Term::BlankNode(_a), Term::Literal(_b)) => Ordering::Greater,
-            (Term::Literal(_a), Term::BlankNode(_b)) => Ordering::Less,
-        }
-    }
-
-    // fn named_node_as_string(&self, named_node: &NamedNode) -> Result<String> {
-    //     let iri: &str = named_node.as_str();
-
-    //     if let Some(base_iri) = self.input.base.as_deref() {
-    //         if iri.starts_with(base_iri) {
-    //             let baseless_iri = &iri[base_iri.len()..];
-    //             return Ok(format!("<{baseless_iri}>"));
-    //         }
-    //     }
-
-    //     let local_name = RE_NAMESPACE_DIVIDER.split(iri).last().unwrap();
-    //     let iri: &str = named_node.as_str();
-    //     let namespace = &iri[0..(iri.len() - local_name.len())];
-    //     Ok(
-    //         if let Some(prefix) = self.input.prefixes_inverted.get(namespace) {
-    //             format!("{prefix}:{local_name}")
-    //         } else {
-    //             format!("<{iri}>")
-    //         },
-    //     )
-    // }
-
-    // fn blank_node_as_string(&self, blank_node: &BlankNode) -> Result<String> {
-    //     // This prints out the name, e.g. "_:node0"
-    //     Ok(blank_node.to_string())
-    // }
-
     fn write_indent<W: Write>(&self, context: &mut Context<W>) -> Result<()> {
         for _ in 0..context.indent_level {
             write!(context.output, "{}", self.options.indentation)?;
         }
         Ok(())
     }
-
-    // fn subj_as_string(&self, subj: &Subject) -> Result<String> {
-    //     Ok(match subj {
-    //         Subject::NamedNode(node) => self.named_node_as_string(node)?,
-    //         Subject::BlankNode(node) => self.blank_node_as_string(node)?,
-    //     })
-    // }
 
     fn fmt_named_node<W: Write>(
         &self,
@@ -259,12 +148,12 @@ impl<'graph> TurtleFormatter<'graph> {
     ) -> Result<()> {
         self.write_indent(context)?;
 
-        let iri: &str = named_node.as_str();
-
-        if iri == NN_RDF_TYPE.as_str() {
+        if *named_node == rdf::TYPE {
             write!(context.output, "a")?;
             return Ok(());
         }
+
+        let iri: &str = named_node.as_str();
 
         if let Some(base_iri) = self.input.base.as_deref() {
             if let Some(baseless_iri) = iri.strip_prefix(base_iri) {
@@ -405,7 +294,6 @@ impl<'graph> TurtleFormatter<'graph> {
         subj_cont: &TSubjectCont<'graph>,
     ) -> Result<()> {
         self.fmt_subj(context, &subj_cont.subject)?;
-        writeln!(context.output)?;
         self.fmt_predicates(context, &subj_cont.predicates, true)?;
         writeln!(context.output)?;
         Ok(())
@@ -418,9 +306,9 @@ impl<'graph> TurtleFormatter<'graph> {
         final_dot: bool,
     ) -> Result<()> {
         if !predicates_conts.is_empty() {
+            writeln!(context.output)?;
             context.indent_level += 1;
             for predicates_cont in predicates_conts {
-                // writeln!(context.output)?;
                 self.fmt_named_node(context, &predicates_cont.predicate.0)?;
                 context.indent_level += 1;
                 let mut first_obj = true;
@@ -436,27 +324,20 @@ impl<'graph> TurtleFormatter<'graph> {
                 context.indent_level -= 1;
                 writeln!(context.output, " ;")?;
             }
-            self.write_indent(context)?;
             if final_dot {
+                self.write_indent(context)?;
                 writeln!(context.output, ".")?;
             }
             context.indent_level -= 1;
+            if !final_dot {
+                self.write_indent(context)?;
+            }
         }
         Ok(())
     }
 
-    // fn term_as_string(&self, term: &Term) -> Result<String> {
-    //     Ok(match term {
-    //         Term::NamedNode(node) => self.named_node_as_string(node)?,
-    //         Term::BlankNode(node) => self.blank_node_as_string(node)?,
-    //         Term::Literal(node) => node.to_string(),
-    //     })
-    // }
-
     fn fmt_triples<W: Write>(&self, context: &mut Context<W>) -> Result<()> {
-        let mut sorted_subjects: Vec<_> = self.tree.subjects.iter().collect();
-        // sorted_subjects.sort_by(Self::cmp_tsubj);
-        for subj_cont in sorted_subjects {
+        for subj_cont in &self.tree.subjects {
             self.fmt_subj_cont(context, subj_cont)?;
         }
         Ok(())
@@ -465,12 +346,10 @@ impl<'graph> TurtleFormatter<'graph> {
     fn fmt_doc<W: Write>(&self, context: &mut Context<W>) -> Result<()> {
         self.fmt_base(context)?;
 
-        // let sorted_prefixes = utils::sort_prefixes(self.options, self.input.prefixes)?;
         self.fmt_prefixes(context)?;
 
         writeln!(context.output)?;
 
-        // self.sort_triples()?;
         self.fmt_triples(context)?;
         Ok(())
     }
