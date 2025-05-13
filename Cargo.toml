@@ -39,22 +39,16 @@ print_stderr = "warn"
 struct_excessive_bools = "allow"
 
 [dependencies]
-const_format = { version = "0.2", default-features = false }
 clap = { version = "4.5", default-features = false, features = ["std", "derive"] }
+const_format = { version = "0.2", default-features = false }
 diffy = { version = "0.4", default-features = false }
-oxrdf = { version = "0.2", default-features = false }
-oxttl = { version = "0.1", default-features = false }
-rdf-canon = { version = "0.15", default-features = false }
+oxrdf = { version = "0.2", default-features = false, features = ["rdf-star"] }
+oxttl = { version = "0.1", default-features = false, features = ["rdf-star"] }
 regex = { version = "1.11", default-features = false }
 thiserror = { version = "2.0", default-features = false }
-tree-sitter = { version = "0.25", default-features = false, features = ["std"] }
 
 [dev-dependencies]
-oxrdf = { version = "0.2", default-features = false }
-oxttl = { version = "0.1", default-features = false }
-pretty_assertions = "1.4"
+oxrdf = { version = "0.2", default-features = false, features = ["rdf-star"] }
+oxttl = { version = "0.1", default-features = false, features = ["rdf-star"] }
+pretty_assertions = { version = "1.4", default-features = false }
 reqwest = { version = "0.12", default-features = false, features = ["blocking"] }
-
-[build-dependencies]
-cc = { version = "1.1", default-features = false }
-tree-sitter-generate = { version = "0.25", default-features = false }

@@ -18,6 +18,7 @@ use oxrdf::LiteralRef;
 use oxrdf::NamedNodeRef;
 use oxrdf::SubjectRef;
 use oxrdf::TermRef;
+use oxrdf::Triple;
 use oxrdf::TripleRef;
 
 use crate::compare;
@@ -43,6 +44,7 @@ impl<'graph> From<SubjectRef<'graph>> for TSubject<'graph> {
             SubjectRef::BlankNode(blank_node_ref) => {
                 Self::BlankNodeLabel(TBlankNodeRef(blank_node_ref))
             }
+            SubjectRef::Triple(triple) => Self::Triple(Box::new(TTriple::from(&triple.as_ref()))),
         }
     }
 }
@@ -194,6 +196,7 @@ impl<'graph> From<TermRef<'graph>> for TObject<'graph> {
                 Self::BlankNodeLabel(TBlankNodeRef(blank_node_ref))
             }
             TermRef::Literal(literal_ref) => Self::Literal(TLiteralRef(literal_ref)),
+            TermRef::Triple(triple) => Self::Triple(Box::new(TTriple::from(&triple.as_ref()))),
         }
     }
 }
@@ -230,6 +233,16 @@ pub struct TTriple<'graph>(
     pub TObject<'graph>,
 );
 
+impl<'graph> From<&TripleRef<'graph>> for TTriple<'graph> {
+    fn from(other: &TripleRef<'graph>) -> Self {
+        Self(
+            TSubject::from(other.subject),
+            TPredicate::from(other.predicate),
+            TObject::from(other.object),
+        )
+    }
+}
+
 trait PredicatesStore<'graph> {
     fn get_predicates_mut<'us>(&'us mut self) -> &'us mut Vec<TPredicateCont<'graph>>
     where
@@ -259,6 +272,7 @@ trait PredicatesStore<'graph> {
                     }
                 }
                 SubjectRef::NamedNode(_) => (),
+                SubjectRef::Triple(_) => (),
             }
             predicate_objects
                 .entry(triple.predicate)
@@ -478,6 +492,10 @@ fn extract_collection<'graph>(
             }
             TermRef::Literal(lit_rest) => {
                 eprintln!("Literal as collection chain element is invalid: {lit_rest}");
+                return None;
+            }
+            TermRef::Triple(triple) => {
+                eprintln!("Triple as collection chain element is invalid: {triple}");
                 return None;
             }
         }
