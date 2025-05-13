@@ -99,16 +99,6 @@ pub fn triples<'graph>(
 }
 
 #[must_use]
-pub fn subj(a: &&Subject, b: &&Subject) -> Ordering {
-    match (a, b) {
-        (Subject::NamedNode(_a), Subject::BlankNode(_b)) => Ordering::Greater,
-        (Subject::BlankNode(_a), Subject::NamedNode(_b)) => Ordering::Less,
-        (Subject::NamedNode(a), Subject::NamedNode(b)) => a.cmp(b),
-        (Subject::BlankNode(a), Subject::BlankNode(b)) => blank_nodes(a, b),
-    }
-}
-
-#[must_use]
 pub fn t_subj<'graph>(
     context: &SortingContext<'graph>,
     a: &TSubject<'graph>,
