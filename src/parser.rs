@@ -25,7 +25,6 @@ pub enum Error {
 
 pub fn parse(turtle_str: &[u8], options: &FormatOptions) -> Result<Input, Error> {
     let mut graph = Graph::new();
-    let mut triples = HashMap::new();
 
     let mut parser = TurtleParser::new().low_level();
     parser.extend_from_slice(turtle_str.as_ref());
@@ -34,13 +33,6 @@ pub fn parse(turtle_str: &[u8], options: &FormatOptions) -> Result<Input, Error>
     while let Some(triple_res) = parser.parse_next() {
         let triple = triple_res?;
         graph.insert(&triple);
-
-        triples
-            .entry(triple.subject)
-            .or_insert_with(HashMap::new)
-            .entry(triple.predicate)
-            .or_insert_with(Vec::new)
-            .push(triple.object);
 
         // validate & store base
         if let Some(cur_base) = parser.base_iri() {
