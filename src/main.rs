@@ -78,7 +78,7 @@ struct Args {
     ///   ```
     #[arg(long)]
     pub sparql_syntax: bool,
-    /// Whether use labels for all blank nodes,
+    /// Whether to use labels for all blank nodes,
     /// or rather maximize nesting of them.
     ///
     /// NOTE That blank nodes referenced in more then one place can never be nested.
