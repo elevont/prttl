@@ -84,11 +84,11 @@ fn t_blank_nodes_with_prtyr<'graph>(
                 .expect("Failed to parse prtyr:sortingId value as u32");
             a_int.cmp(&b_int)
         }
+        (Some(_), Some(_)) => panic!("At least one prtyr:sortingId value is not a literal"),
         (None, Some(_)) => Ordering::Greater,
         (Some(_), None) => Ordering::Less,
-        (_, _) => Ordering::Equal,
+        (None, None) => t_blank_nodes_by_label(context, a, b),
     }
-    // todo!("compare::t_blank_nodes") // TODO
 }
 
 #[must_use]
