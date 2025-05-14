@@ -18,7 +18,6 @@ use oxrdf::LiteralRef;
 use oxrdf::NamedNodeRef;
 use oxrdf::SubjectRef;
 use oxrdf::TermRef;
-use oxrdf::Triple;
 use oxrdf::TripleRef;
 
 use crate::compare;
