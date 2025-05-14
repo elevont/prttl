@@ -365,6 +365,10 @@ impl<'graph> TRoot<'graph> {
         }
     }
 
+    fn sort_triple(triple: &mut TTriple<'graph>, context: &SortingContext<'graph>) {
+        Self::sort_object(&mut triple.2, context);
+    }
+
     fn sort_collection_ref(
         collection: &mut TCollectionRef<'graph>,
         context: &SortingContext<'graph>,
@@ -384,7 +388,15 @@ impl<'graph> TRoot<'graph> {
             TObject::BlankNodeAnonymous(ref mut blank_node) => {
                 Self::sort_blank_node(blank_node, context);
             }
-            _ => (),
+            TObject::Triple(ref mut triple_box) => {
+                Self::sort_triple(triple_box, context);
+            }
+            // NOTE We need not sort BlankNodeLabel here,
+            //      because it is already sorted by being a Subject within TRoot.
+            TObject::NamedNode(_)
+            | TObject::Collection(TCollection::Empty)
+            | TObject::BlankNodeLabel(_)
+            | TObject::Literal(_) => (),
         }
     }
 
