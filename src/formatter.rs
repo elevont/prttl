@@ -303,31 +303,61 @@ impl<'graph> TurtleFormatter<'graph> {
         final_dot: bool,
     ) -> Result<()> {
         if !predicates_conts.is_empty() {
-            writeln!(context.output)?;
-            context.indent_level += 1;
-            for predicates_cont in predicates_conts {
-                self.fmt_named_node(context, &predicates_cont.predicate.0)?;
+            if !self.options.single_object_on_new_line
+                && predicates_conts.len() == 1
+                && predicates_conts.first().unwrap().is_single_item()
+            {
+                write!(context.output, " ")?;
+                let bak_indent = context.indent_level;
+                context.indent_level = 0;
+                self.fmt_named_node(context, &predicates_conts.first().unwrap().predicate.0)?;
+                write!(context.output, " ")?;
+                self.fmt_obj(
+                    context,
+                    predicates_conts.first().unwrap().objects.first().unwrap(),
+                )?;
+                write!(context.output, " ")?;
+                context.indent_level = bak_indent;
+                // writeln!(context.output, " ;")?;
+                // context.indent_level += 1;
+            } else {
+                writeln!(context.output)?;
                 context.indent_level += 1;
-                let mut first_obj = true;
-                for obj in &predicates_cont.objects {
-                    if first_obj {
-                        first_obj = false;
-                        writeln!(context.output)?;
+                for predicates_cont in predicates_conts {
+                    self.fmt_named_node(context, &predicates_cont.predicate.0)?;
+                    if !self.options.single_object_on_new_line && predicates_cont.is_single_item() {
+                        write!(context.output, " ")?;
+                        let bak_indent = context.indent_level;
+                        context.indent_level = 0;
+                        self.fmt_obj(
+                            context,
+                            predicates_conts.first().unwrap().objects.first().unwrap(),
+                        )?;
+                        context.indent_level = bak_indent;
                     } else {
-                        writeln!(context.output, " ,")?;
+                        context.indent_level += 1;
+                        let mut first_obj = true;
+                        for obj in &predicates_cont.objects {
+                            if first_obj {
+                                first_obj = false;
+                                writeln!(context.output)?;
+                            } else {
+                                writeln!(context.output, " ,")?;
+                            }
+                            self.fmt_obj(context, obj)?;
+                        }
+                        context.indent_level -= 1;
                     }
-                    self.fmt_obj(context, obj)?;
+                    writeln!(context.output, " ;")?;
+                }
+                if final_dot {
+                    self.write_indent(context)?;
+                    writeln!(context.output, ".")?;
                 }
                 context.indent_level -= 1;
-                writeln!(context.output, " ;")?;
-            }
-            if final_dot {
-                self.write_indent(context)?;
-                writeln!(context.output, ".")?;
-            }
-            context.indent_level -= 1;
-            if !final_dot {
-                self.write_indent(context)?;
+                if !final_dot {
+                    self.write_indent(context)?;
+                }
             }
         }
         Ok(())

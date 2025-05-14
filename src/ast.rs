@@ -120,6 +120,12 @@ impl<'graph> From<NamedNodeRef<'graph>> for TPredicateCont<'graph> {
     }
 }
 
+impl TPredicateCont<'_> {
+    pub fn is_single_item(&self) -> bool {
+        self.objects.len() == 1 && self.objects.first().unwrap().is_single_item()
+    }
+}
+
 #[derive(Debug, PartialEq, Eq, Hash)]
 pub struct TBlankNodeRef<'graph>(pub BlankNodeRef<'graph>);
 
@@ -213,6 +219,17 @@ impl From<&TObject<'_>> for u8 {
     }
 }
 
+impl TObject<'_> {
+    pub fn is_single_item(&self) -> bool {
+        match self {
+            TObject::NamedNode(_) | TObject::BlankNodeLabel(_) | TObject::Literal(_) => true,
+            TObject::BlankNodeAnonymous(bn) => bn.is_single_item(),
+            TObject::Collection(col) => col.is_single_item(),
+            TObject::Triple(_) => false,
+        }
+    }
+}
+
 #[derive(Debug, PartialEq, Eq, Hash)]
 pub struct TCollectionRef<'graph> {
     pub node: TBlankNode<'graph>,
@@ -223,6 +240,17 @@ pub struct TCollectionRef<'graph> {
 pub enum TCollection<'graph> {
     WithContent(TCollectionRef<'graph>),
     Empty,
+}
+
+impl TCollection<'_> {
+    pub fn is_single_item(&self) -> bool {
+        match self {
+            TCollection::Empty => true,
+            TCollection::WithContent(col) => {
+                col.rest.len() == 1 && col.rest.first().unwrap().is_single_item()
+            }
+        }
+    }
 }
 
 #[derive(Debug, PartialEq, Eq, Hash)]
@@ -343,6 +371,12 @@ impl<'graph> PredicatesStore<'graph> for TBlankNode<'graph> {
 impl std::hash::Hash for TBlankNode<'_> {
     fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
         self.node.hash(state);
+    }
+}
+
+impl TBlankNode<'_> {
+    pub fn is_single_item(&self) -> bool {
+        self.predicates.len() == 1 && self.predicates.first().unwrap().is_single_item()
     }
 }
 
