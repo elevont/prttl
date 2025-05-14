@@ -270,8 +270,7 @@ trait PredicatesStore<'graph> {
                         // continue;
                     }
                 }
-                SubjectRef::NamedNode(_) => (),
-                SubjectRef::Triple(_) => (),
+                SubjectRef::NamedNode(_) | SubjectRef::Triple(_) => (),
             }
             predicate_objects
                 .entry(triple.predicate)
