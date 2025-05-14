@@ -62,9 +62,6 @@ pub enum Error {
 
 pub type Result<T> = std::result::Result<T, Error>;
 
-static PRTYR_SORTING_ID: LazyLock<NamedNode> =
-    LazyLock::new(|| NamedNode::new("http://w3id.org/oseg/ont/prtyr#sortingId").unwrap());
-
 static RE_NAMESPACE_DIVIDER: LazyLock<Regex> = LazyLock::new(|| Regex::new("[/#]").unwrap());
 
 pub fn format(input: &Input, options: Rc<FormatOptions>) -> Result<String> {
