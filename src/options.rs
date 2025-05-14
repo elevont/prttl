@@ -60,6 +60,10 @@ pub struct FormatOptions {
     ///
     /// NOTE That blank nodes referenced in more then one place can never be nested.
     pub max_nesting: bool,
+    /// Whether to canonicalize the input before formatting.
+    /// This refers to <https://www.w3.org/TR/rdf-canon/>,
+    /// and effectively just label the blank nodes in a uniform way.
+    pub canonicalize: bool,
 }
 
 impl Default for FormatOptions {
@@ -73,6 +77,7 @@ impl Default for FormatOptions {
             prtyr_sorting: true,
             sparql_syntax: false,
             max_nesting: true,
+            canonicalize: true,
         }
     }
 }

@@ -4,12 +4,12 @@
 
 use std::collections::{BTreeMap, HashMap};
 
-use oxrdf::Graph;
+use oxrdf::{graph::CanonicalizationAlgorithm, Graph};
 use oxttl::TurtleParser;
 
 use thiserror::Error;
 
-use crate::input::Input;
+use crate::{input::Input, options::FormatOptions};
 
 #[derive(Error, Debug)]
 pub enum Error {
@@ -23,7 +23,7 @@ pub enum Error {
     TurtleSyntaxError(#[from] oxttl::TurtleSyntaxError),
 }
 
-pub fn parse(turtle_str: &[u8]) -> Result<Input, Error> {
+pub fn parse(turtle_str: &[u8], options: &FormatOptions) -> Result<Input, Error> {
     let mut graph = Graph::new();
     let mut triples = HashMap::new();
 
@@ -62,6 +62,9 @@ pub fn parse(turtle_str: &[u8]) -> Result<Input, Error> {
                 prefixes.insert(cur_prefix.0.to_owned(), cur_prefix.1.to_owned());
             }
         }
+    }
+    if options.canonicalize {
+        graph.canonicalize(CanonicalizationAlgorithm::Unstable);
     }
 
     let prefixes_sorted = BTreeMap::from_iter(prefixes.clone());

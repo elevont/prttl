@@ -84,6 +84,11 @@ struct Args {
     /// NOTE That blank nodes referenced in more then one place can never be nested.
     #[arg(long)]
     pub label_all_blank_nodes: bool,
+    /// Whether to canonicalize the input before formatting.
+    /// This refers to <https://www.w3.org/TR/rdf-canon/>,
+    /// and effectively just label the blank nodes in a uniform way.
+    #[arg(long)]
+    pub canonicalize: bool,
 }
 
 impl From<&Args> for FormatOptions {
@@ -93,6 +98,7 @@ impl From<&Args> for FormatOptions {
         let prtyr_sorting = !args.no_prtyr_sorting;
         let sparql_syntax = args.sparql_syntax;
         let max_nesting = !args.label_all_blank_nodes;
+        let canonicalize = args.canonicalize;
         Self {
             indentation,
             single_object_on_new_line: false,
@@ -100,6 +106,7 @@ impl From<&Args> for FormatOptions {
             prtyr_sorting,
             sparql_syntax,
             max_nesting,
+            canonicalize,
         }
     }
 }
@@ -123,7 +130,7 @@ fn main() -> Result<ExitCode, Error> {
     for file in files {
         let original = fs::read_to_string(&file)
             .map_err(|_err| Error::FailedToReadTargetFile(file.clone()))?;
-        let input = parser::parse(original.as_bytes())?;
+        let input = parser::parse(original.as_bytes(), &options)?;
         let formatted = format(&input, Rc::<_>::clone(&options))?;
         if original == formatted {
             // Nothing to do
