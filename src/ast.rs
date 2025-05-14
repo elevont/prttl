@@ -380,6 +380,33 @@ impl<'graph> TRoot<'graph> {
         Self::sort_predicates(&mut blank_node.predicates, context);
     }
 
+    fn sort_subject(subject: &mut TSubject<'graph>, context: &SortingContext<'graph>) {
+        match subject {
+            TSubject::Collection(TCollection::WithContent(ref mut collection)) => {
+                Self::sort_collection_ref(collection, context);
+            }
+            TSubject::BlankNodeAnonymous(ref mut blank_node) => {
+                Self::sort_blank_node(blank_node, context);
+            }
+            TSubject::Triple(ref mut triple_box) => {
+                Self::sort_triple(triple_box, context);
+            }
+            // NOTE We need not sort BlankNodeLabel here,
+            //      because it is already sorted by being a Subject within TRoot.
+            TSubject::NamedNode(_)
+            | TSubject::Collection(TCollection::Empty)
+            | TSubject::BlankNodeLabel(_) => (),
+        }
+    }
+
+    fn sort_subject_cont(
+        subject_cont: &mut TSubjectCont<'graph>,
+        context: &SortingContext<'graph>,
+    ) {
+        Self::sort_subject(&mut subject_cont.subject, context);
+        Self::sort_predicates(&mut subject_cont.predicates, context);
+    }
+
     fn sort_object(object: &mut TObject<'graph>, context: &SortingContext<'graph>) {
         match object {
             TObject::Collection(TCollection::WithContent(ref mut collection)) => {
@@ -421,7 +448,7 @@ impl<'graph> TRoot<'graph> {
         self.subjects
             .sort_by(|a, b| compare::t_subj_cont(context, a, b));
         for subject_cont in &mut self.subjects {
-            Self::sort_predicates(&mut subject_cont.predicates, context);
+            Self::sort_subject_cont(subject_cont, context);
         }
     }
 }
