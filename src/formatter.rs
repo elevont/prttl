@@ -4,7 +4,7 @@
 
 use crate::ast::{
     construct_tree, SortingContext, TBlankNode, TBlankNodeRef, TCollection, TLiteralRef, TObject,
-    TPredicateCont, TRoot, TSubject, TSubjectCont,
+    TPredicateCont, TRoot, TSubject, TSubjectCont, TTriple,
 };
 use crate::context::Context;
 use crate::options::FormatOptions;
@@ -192,6 +192,22 @@ impl<'graph> TurtleFormatter<'graph> {
         Ok(())
     }
 
+    fn fmt_triple<W: Write>(
+        &self,
+        context: &mut Context<W>,
+        triple: &TTriple<'graph>,
+    ) -> Result<()> {
+        self.write_indent(context)?;
+        write!(context.output, "<<( ")?;
+        self.fmt_subj(context, &triple.0)?;
+        write!(context.output, " ")?;
+        self.fmt_named_node(context, &triple.1.0)?;
+        write!(context.output, " ")?;
+        self.fmt_obj(context, &triple.2)?;
+        write!(context.output, " )>>")?;
+        Ok(())
+    }
+
     fn fmt_collection<W: Write>(
         &self,
         context: &mut Context<W>,
@@ -202,20 +218,29 @@ impl<'graph> TurtleFormatter<'graph> {
         match collection {
             TCollection::Empty => (),
             TCollection::WithContent(collection_ref) => {
-                writeln!(context.output)?;
-                context.indent_level += 1;
-                let mut first_entry = true;
-                for entry in &collection_ref.rest {
-                    if first_entry {
-                        first_entry = false;
-                    } else {
-                        writeln!(context.output)?;
+                if !self.options.single_object_on_new_line && collection.is_single_item() {
+                    write!(context.output, " ")?;
+                    let bak_indent = context.indent_level;
+                    context.indent_level = 0;
+                    self.fmt_obj(context, collection_ref.rest.first().unwrap())?;
+                    context.indent_level = bak_indent;
+                    write!(context.output, " ")?;
+                } else {
+                    writeln!(context.output)?;
+                    context.indent_level += 1;
+                    let mut first_entry = true;
+                    for entry in &collection_ref.rest {
+                        if first_entry {
+                            first_entry = false;
+                        } else {
+                            writeln!(context.output)?;
+                        }
+                        self.fmt_obj(context, entry)?;
                     }
-                    self.fmt_obj(context, entry)?;
+                    writeln!(context.output)?;
+                    context.indent_level -= 1;
+                    self.write_indent(context)?;
                 }
-                writeln!(context.output)?;
-                context.indent_level -= 1;
-                self.write_indent(context)?;
             }
         }
         write!(context.output, ")")?;
@@ -265,7 +290,7 @@ impl<'graph> TurtleFormatter<'graph> {
             }
             TObject::Collection(collection) => self.fmt_collection(context, collection)?,
             TObject::Literal(t_literal_ref) => self.fmt_literal(context, t_literal_ref)?,
-            TObject::Triple(_) => todo!(),
+            TObject::Triple(triple) => self.fmt_triple(context, triple)?,
         }
         Ok(())
     }
@@ -280,7 +305,7 @@ impl<'graph> TurtleFormatter<'graph> {
                 self.fmt_blank_node_anonymous(context, blank_node)?;
             }
             TSubject::Collection(collection) => self.fmt_collection(context, collection)?,
-            TSubject::Triple(_) => todo!(),
+            TSubject::Triple(triple) => self.fmt_triple(context, triple)?,
         }
         Ok(())
     }
