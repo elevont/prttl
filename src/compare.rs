@@ -9,9 +9,7 @@ use crate::{
     },
     vocab::prtyr,
 };
-use oxrdf::{
-    vocab::rdf, BlankNode, BlankNodeRef, LiteralRef, NamedNodeRef, Subject, SubjectRef, TermRef,
-};
+use oxrdf::{vocab::rdf, BlankNode, BlankNodeRef, LiteralRef, NamedNodeRef, SubjectRef, TermRef};
 use std::cmp::Ordering;
 
 #[must_use]
