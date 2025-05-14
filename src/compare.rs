@@ -4,8 +4,8 @@
 
 use crate::{
     ast::{
-        SortingContext, TBlankNode, TBlankNodeRef, TCollection, TLiteralRef, TObject,
-        TPredicateCont, TSubject, TSubjectCont, TTriple,
+        SortingContext, TBlankNode, TBlankNodeRef, TCollection, TCollectionRef, TLiteralRef,
+        TObject, TPredicateCont, TSubject, TSubjectCont, TTriple,
     },
     vocab::prtyr,
 };
@@ -81,12 +81,42 @@ pub fn t_blank_nodes_with_prtyr<'graph>(
 }
 
 #[must_use]
-pub fn collections<'graph>(
+pub fn t_collection_refs<'graph>(
+    context: &SortingContext<'graph>,
+    a: &TCollectionRef<'graph>,
+    b: &TCollectionRef<'graph>,
+) -> Ordering {
+    let mut b_iter = b.rest.iter();
+    for a_item in &a.rest {
+        if let Some(b_item) = b_iter.next() {
+            let cmp_item = t_obj(context, a_item, b_item);
+            if cmp_item != Ordering::Equal {
+                return cmp_item;
+            }
+        } else {
+            return Ordering::Greater;
+        }
+    }
+    if b_iter.next().is_some() {
+        return Ordering::Less;
+    }
+    t_blank_nodes(context, &a.node, &b.node)
+}
+
+#[must_use]
+pub fn t_collections<'graph>(
     context: &SortingContext<'graph>,
     a: &TCollection<'graph>,
     b: &TCollection<'graph>,
 ) -> Ordering {
-    todo!("compare::collections") // TODO
+    match (a, b) {
+        (TCollection::Empty, TCollection::Empty) => Ordering::Equal,
+        (TCollection::Empty, TCollection::WithContent(_)) => Ordering::Less,
+        (TCollection::WithContent(_), TCollection::Empty) => Ordering::Greater,
+        (TCollection::WithContent(a), TCollection::WithContent(b)) => {
+            t_collection_refs(context, a, b)
+        }
+    }
 }
 
 #[must_use]
@@ -116,7 +146,7 @@ pub fn t_subj<'graph>(
         (TSubject::BlankNodeAnonymous(a), TSubject::BlankNodeAnonymous(b)) => {
             t_blank_nodes_with_prtyr(context, a, b)
         }
-        (TSubject::Collection(a), TSubject::Collection(b)) => collections(context, a, b),
+        (TSubject::Collection(a), TSubject::Collection(b)) => t_collections(context, a, b),
         (TSubject::Triple(a), TSubject::Triple(b)) => triples(context, a, b),
         (a, b) => {
             let a_type_num: u8 = a.into();
@@ -170,7 +200,7 @@ pub fn t_obj<'graph>(
         (TObject::BlankNodeAnonymous(a), TObject::BlankNodeAnonymous(b)) => {
             t_blank_nodes_with_prtyr(context, a, b)
         }
-        (TObject::Collection(a), TObject::Collection(b)) => collections(context, a, b),
+        (TObject::Collection(a), TObject::Collection(b)) => t_collections(context, a, b),
         (TObject::Literal(TLiteralRef(a)), TObject::Literal(TLiteralRef(b))) => literals(a, b),
         (TObject::Triple(a), TObject::Triple(b)) => triples(context, a, b),
         (a, b) => {
