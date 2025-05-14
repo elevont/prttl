@@ -136,7 +136,15 @@ pub fn triples<'graph>(
     a: &TTriple<'graph>,
     b: &TTriple<'graph>,
 ) -> Ordering {
-    todo!("compare::triples") // TODO
+    let cmp_subj = t_subj(context, &a.0, &b.0);
+    if cmp_subj != Ordering::Equal {
+        return cmp_subj;
+    }
+    let cmp_pred = pred_ref(context, &a.1.0, &b.1.0);
+    if cmp_pred != Ordering::Equal {
+        return cmp_pred;
+    }
+    t_obj(context, &a.2, &b.2)
 }
 
 #[must_use]
