@@ -9,7 +9,7 @@ use crate::ast::{
 use crate::context::Context;
 use crate::options::FormatOptions;
 use crate::parser;
-use oxrdf::{vocab::rdf, vocab::xsd, BlankNodeRef, NamedNode, NamedNodeRef};
+use oxrdf::{vocab::rdf, vocab::xsd, BlankNodeRef, NamedNodeRef};
 use regex::Regex;
 use std::fmt::Write;
 use std::path::PathBuf;
