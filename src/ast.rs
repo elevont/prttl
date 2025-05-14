@@ -365,7 +365,10 @@ impl<'graph> TRoot<'graph> {
         }
     }
 
-    fn sort_collection(collection: &mut TCollectionRef<'graph>, context: &SortingContext<'graph>) {
+    fn sort_collection_ref(
+        collection: &mut TCollectionRef<'graph>,
+        context: &SortingContext<'graph>,
+    ) {
         Self::sort_objects(&mut collection.rest, context);
     }
 
@@ -376,7 +379,7 @@ impl<'graph> TRoot<'graph> {
     fn sort_object(object: &mut TObject<'graph>, context: &SortingContext<'graph>) {
         match object {
             TObject::Collection(TCollection::WithContent(ref mut collection)) => {
-                Self::sort_collection(collection, context);
+                Self::sort_collection_ref(collection, context);
             }
             TObject::BlankNodeAnonymous(ref mut blank_node) => {
                 Self::sort_blank_node(blank_node, context);
