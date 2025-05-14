@@ -36,7 +36,20 @@ pub fn blank_node_refs<'graph>(a: &BlankNodeRef<'graph>, b: &BlankNodeRef<'graph
 }
 
 #[must_use]
-pub fn t_blank_nodes_by_label<'graph>(
+pub fn t_blank_nodes<'graph>(
+    context: &SortingContext<'graph>,
+    a: &TBlankNode<'graph>,
+    b: &TBlankNode<'graph>,
+) -> Ordering {
+    if context.options.prtyr_sorting {
+        t_blank_nodes_with_prtyr(context, a, b)
+    } else {
+        t_blank_nodes_by_label(context, a, b)
+    }
+}
+
+#[must_use]
+fn t_blank_nodes_by_label<'graph>(
     context: &SortingContext<'graph>,
     a: &TBlankNode<'graph>,
     b: &TBlankNode<'graph>,
@@ -47,7 +60,7 @@ pub fn t_blank_nodes_by_label<'graph>(
 }
 
 #[must_use]
-pub fn t_blank_nodes_with_prtyr<'graph>(
+fn t_blank_nodes_with_prtyr<'graph>(
     context: &SortingContext<'graph>,
     a: &TBlankNode<'graph>,
     b: &TBlankNode<'graph>,
@@ -142,7 +155,7 @@ pub fn t_subj<'graph>(
             TSubject::BlankNodeLabel(TBlankNodeRef(b)),
         ) => blank_node_refs(a, b),
         (TSubject::BlankNodeAnonymous(a), TSubject::BlankNodeAnonymous(b)) => {
-            t_blank_nodes_with_prtyr(context, a, b)
+            t_blank_nodes(context, a, b)
         }
         (TSubject::Collection(a), TSubject::Collection(b)) => t_collections(context, a, b),
         (TSubject::Triple(a), TSubject::Triple(b)) => triples(context, a, b),
@@ -196,7 +209,7 @@ pub fn t_obj<'graph>(
             blank_node_refs(a, b)
         }
         (TObject::BlankNodeAnonymous(a), TObject::BlankNodeAnonymous(b)) => {
-            t_blank_nodes_with_prtyr(context, a, b)
+            t_blank_nodes(context, a, b)
         }
         (TObject::Collection(a), TObject::Collection(b)) => t_collections(context, a, b),
         (TObject::Literal(TLiteralRef(a)), TObject::Literal(TLiteralRef(b))) => literals(a, b),
