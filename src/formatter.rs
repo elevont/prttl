@@ -7,64 +7,20 @@ use crate::ast::{
     TPredicateCont, TRoot, TSubject, TSubjectCont, TTriple,
 };
 use crate::context::Context;
+use crate::error::Error;
+use crate::error::FmtResult;
 use crate::options::FormatOptions;
-use crate::parser;
 use oxrdf::{vocab::rdf, vocab::xsd, BlankNodeRef, NamedNodeRef};
 use regex::Regex;
 use std::fmt::Write;
-use std::path::PathBuf;
 use std::rc::Rc;
 use std::sync::LazyLock;
-use thiserror::Error;
 
 use crate::input::Input;
 
-#[derive(Debug)]
-pub enum FilesListErrorType {
-    ReadDir,
-    ExtractEntry,
-    EvaluateFileType,
-}
-
-#[derive(Error, Debug)]
-pub enum Error {
-    #[error("We do not support redefinition of prefixes, which is the case with {0}")]
-    PrefixRedefinition(String),
-
-    #[error("We do not support more then one base IRI defined per file")]
-    MultipleBases,
-
-    #[error(transparent)]
-    TurtleSyntaxError(#[from] oxttl::TurtleSyntaxError),
-
-    /// Represents all cases of `std::io::Error`.
-    #[error(transparent)]
-    Format(#[from] std::fmt::Error),
-
-    #[error("The target to format {0} does not seem to exist")]
-    TargetFileDoesNotExist(PathBuf),
-
-    #[error("Error while reading {0}")]
-    FailedToReadTargetFile(PathBuf),
-
-    #[error("Failed to parse input as turtle: {0}")]
-    ParseError(#[from] parser::Error),
-
-    #[error("Error while writing {0}")]
-    FailedToWriteFormattedFile(PathBuf),
-
-    #[error("Failed to list files in input directory {0}: {1:?}")]
-    FailedToListFilesInInputDir(PathBuf, FilesListErrorType),
-
-    #[error("Failed to create Turtle file tree structure: {0}")]
-    FailedToCreateTurtleStructure(String),
-}
-
-pub type Result<T> = std::result::Result<T, Error>;
-
 static RE_NAMESPACE_DIVIDER: LazyLock<Regex> = LazyLock::new(|| Regex::new("[/#]").unwrap());
 
-pub fn format(input: &Input, options: Rc<FormatOptions>) -> Result<String> {
+pub fn format(input: &Input, options: Rc<FormatOptions>) -> FmtResult<String> {
     let mut output = String::new();
     let mut context = Context {
         indent_level: 0,
@@ -106,7 +62,7 @@ impl<'graph> TurtleFormatter<'graph> {
 }
 
 impl<'graph> TurtleFormatter<'graph> {
-    fn fmt_base<W: Write>(&self, context: &mut Context<W>) -> Result<()> {
+    fn fmt_base<W: Write>(&self, context: &mut Context<W>) -> FmtResult<()> {
         let base_iri = if let Some(base_iri) = self.input.base.as_deref() {
             base_iri.to_owned()
         } else {
@@ -120,7 +76,7 @@ impl<'graph> TurtleFormatter<'graph> {
         Ok(())
     }
 
-    fn fmt_prefixes<W: Write>(&self, context: &mut Context<W>) -> Result<()> {
+    fn fmt_prefixes<W: Write>(&self, context: &mut Context<W>) -> FmtResult<()> {
         for (prefix, iri) in &self.input.prefixes {
             if self.options.sparql_syntax {
                 writeln!(context.output, "PREFIX {prefix}: <{iri}>")?;
@@ -131,7 +87,7 @@ impl<'graph> TurtleFormatter<'graph> {
         Ok(())
     }
 
-    fn write_indent<W: Write>(&self, context: &mut Context<W>) -> Result<()> {
+    fn write_indent<W: Write>(&self, context: &mut Context<W>) -> FmtResult<()> {
         for _ in 0..context.indent_level {
             write!(context.output, "{}", self.options.indentation)?;
         }
@@ -142,7 +98,7 @@ impl<'graph> TurtleFormatter<'graph> {
         &self,
         context: &mut Context<W>,
         named_node: &NamedNodeRef<'_>,
-    ) -> Result<()> {
+    ) -> FmtResult<()> {
         self.write_indent(context)?;
 
         if *named_node == rdf::TYPE {
@@ -174,7 +130,7 @@ impl<'graph> TurtleFormatter<'graph> {
         &self,
         context: &mut Context<W>,
         blank_node: &BlankNodeRef<'_>,
-    ) -> Result<()> {
+    ) -> FmtResult<()> {
         self.write_indent(context)?;
         write!(context.output, "{blank_node}")?;
         Ok(())
@@ -184,7 +140,7 @@ impl<'graph> TurtleFormatter<'graph> {
         &self,
         context: &mut Context<W>,
         blank_node: &TBlankNode<'graph>,
-    ) -> Result<()> {
+    ) -> FmtResult<()> {
         self.write_indent(context)?;
         write!(context.output, "[")?;
         self.fmt_predicates(context, &blank_node.predicates, false)?;
@@ -196,12 +152,12 @@ impl<'graph> TurtleFormatter<'graph> {
         &self,
         context: &mut Context<W>,
         triple: &TTriple<'graph>,
-    ) -> Result<()> {
+    ) -> FmtResult<()> {
         self.write_indent(context)?;
         write!(context.output, "<<( ")?;
         self.fmt_subj(context, &triple.0)?;
         write!(context.output, " ")?;
-        self.fmt_named_node(context, &triple.1.0)?;
+        self.fmt_named_node(context, &triple.1 .0)?;
         write!(context.output, " ")?;
         self.fmt_obj(context, &triple.2)?;
         write!(context.output, " )>>")?;
@@ -212,7 +168,7 @@ impl<'graph> TurtleFormatter<'graph> {
         &self,
         context: &mut Context<W>,
         collection: &TCollection<'graph>,
-    ) -> Result<()> {
+    ) -> FmtResult<()> {
         self.write_indent(context)?;
         write!(context.output, "(")?;
         match collection {
@@ -251,7 +207,7 @@ impl<'graph> TurtleFormatter<'graph> {
         &self,
         context: &mut Context<W>,
         literal: &TLiteralRef<'graph>,
-    ) -> Result<()> {
+    ) -> FmtResult<()> {
         self.write_indent(context)?;
         if literal.0.is_plain() {
             write!(context.output, "{}", literal.0)?;
@@ -279,7 +235,7 @@ impl<'graph> TurtleFormatter<'graph> {
         Ok(())
     }
 
-    fn fmt_obj<W: Write>(&self, context: &mut Context<W>, obj: &TObject<'graph>) -> Result<()> {
+    fn fmt_obj<W: Write>(&self, context: &mut Context<W>, obj: &TObject<'graph>) -> FmtResult<()> {
         match obj {
             TObject::NamedNode(named_node_ref) => self.fmt_named_node(context, named_node_ref)?,
             TObject::BlankNodeLabel(TBlankNodeRef(blank_node_ref)) => {
@@ -295,7 +251,11 @@ impl<'graph> TurtleFormatter<'graph> {
         Ok(())
     }
 
-    fn fmt_subj<W: Write>(&self, context: &mut Context<W>, subj: &TSubject<'graph>) -> Result<()> {
+    fn fmt_subj<W: Write>(
+        &self,
+        context: &mut Context<W>,
+        subj: &TSubject<'graph>,
+    ) -> FmtResult<()> {
         match subj {
             TSubject::NamedNode(named_node_ref) => self.fmt_named_node(context, named_node_ref)?,
             TSubject::BlankNodeLabel(TBlankNodeRef(blank_node_ref)) => {
@@ -314,7 +274,7 @@ impl<'graph> TurtleFormatter<'graph> {
         &self,
         context: &mut Context<W>,
         subj_cont: &TSubjectCont<'graph>,
-    ) -> Result<()> {
+    ) -> FmtResult<()> {
         self.fmt_subj(context, &subj_cont.subject)?;
         self.fmt_predicates(context, &subj_cont.predicates, true)?;
         writeln!(context.output)?;
@@ -326,7 +286,7 @@ impl<'graph> TurtleFormatter<'graph> {
         context: &mut Context<W>,
         predicates_conts: &Vec<TPredicateCont<'graph>>,
         final_dot: bool,
-    ) -> Result<()> {
+    ) -> FmtResult<()> {
         if !predicates_conts.is_empty() {
             if !self.options.single_object_on_new_line
                 && predicates_conts.len() == 1
@@ -388,14 +348,14 @@ impl<'graph> TurtleFormatter<'graph> {
         Ok(())
     }
 
-    fn fmt_triples<W: Write>(&self, context: &mut Context<W>) -> Result<()> {
+    fn fmt_triples<W: Write>(&self, context: &mut Context<W>) -> FmtResult<()> {
         for subj_cont in &self.tree.subjects {
             self.fmt_subj_cont(context, subj_cont)?;
         }
         Ok(())
     }
 
-    fn fmt_doc<W: Write>(&self, context: &mut Context<W>) -> Result<()> {
+    fn fmt_doc<W: Write>(&self, context: &mut Context<W>) -> FmtResult<()> {
         self.fmt_base(context)?;
 
         self.fmt_prefixes(context)?;

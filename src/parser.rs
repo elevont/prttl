@@ -2,7 +2,10 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
-use std::collections::{BTreeMap, HashMap};
+use std::{
+    collections::{BTreeMap, HashMap},
+    rc::Rc,
+};
 
 use oxrdf::{graph::CanonicalizationAlgorithm, Graph};
 use oxttl::TurtleParser;
@@ -23,7 +26,7 @@ pub enum Error {
     TurtleSyntaxError(#[from] oxttl::TurtleSyntaxError),
 }
 
-pub fn parse(turtle_str: &[u8], options: &FormatOptions) -> Result<Input, Error> {
+pub fn parse(turtle_str: &[u8], options: &Rc<FormatOptions>) -> Result<Input, Error> {
     let mut graph = Graph::new();
 
     let mut parser = TurtleParser::new().low_level();

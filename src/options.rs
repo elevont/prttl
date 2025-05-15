@@ -3,6 +3,8 @@
 // SPDX-License-Identifier: Apache-2.0
 
 pub struct FormatOptions {
+    /// Do not edit the file but only check if it already applies this tools format.
+    pub check: bool,
     /// Space(s) or tab(s) representing one level of indentation.
     pub indentation: String,
     // /// Whether to sort subjects, predicates and objects,
@@ -69,6 +71,7 @@ pub struct FormatOptions {
 impl Default for FormatOptions {
     fn default() -> Self {
         Self {
+            check: true,
             indentation: "  ".to_string(),
             // sort_terms: false,
             // new_lines_for_easy_diff: false,
