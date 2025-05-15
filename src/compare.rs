@@ -140,7 +140,7 @@ pub fn triples<'graph>(
     if cmp_subj != Ordering::Equal {
         return cmp_subj;
     }
-    let cmp_pred = pred_ref(context, &a.1.0, &b.1.0);
+    let cmp_pred = pred_ref(context, &a.1 .0, &b.1 .0);
     if cmp_pred != Ordering::Equal {
         return cmp_pred;
     }
