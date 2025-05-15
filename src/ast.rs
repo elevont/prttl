@@ -121,6 +121,7 @@ impl<'graph> From<NamedNodeRef<'graph>> for TPredicateCont<'graph> {
 }
 
 impl TPredicateCont<'_> {
+    #[must_use]
     pub fn is_single_item(&self) -> bool {
         self.objects.len() == 1 && self.objects.first().unwrap().is_single_item()
     }
@@ -220,6 +221,7 @@ impl From<&TObject<'_>> for u8 {
 }
 
 impl TObject<'_> {
+    #[must_use]
     pub fn is_single_item(&self) -> bool {
         match self {
             TObject::NamedNode(_) | TObject::BlankNodeLabel(_) | TObject::Literal(_) => true,
@@ -243,6 +245,7 @@ pub enum TCollection<'graph> {
 }
 
 impl TCollection<'_> {
+    #[must_use]
     pub fn is_single_item(&self) -> bool {
         match self {
             TCollection::Empty => true,
@@ -375,6 +378,7 @@ impl std::hash::Hash for TBlankNode<'_> {
 }
 
 impl TBlankNode<'_> {
+    #[must_use]
     pub fn is_single_item(&self) -> bool {
         self.predicates.len() == 1 && self.predicates.first().unwrap().is_single_item()
     }
