@@ -3,8 +3,11 @@
 # SPDX-License-Identifier: Apache-2.0
 
 [package]
-authors = ["Tpt <thomas@pellissier-tanon.fr>"]
-description = "Auto-formatter for RDF Turtle"
+authors = [
+    "Tpt <thomas@pellissier-tanon.fr>",
+    "Robin Vobruba <hoijui.quaero@gmail.com>"
+    ]
+description = "Pretty-printer for RDF Turtle"
 edition = "2021"
 keywords = ["pretty-print", "rdf", "turtle"]
 categories = ["command-line-utilities", "development-tools", "value-formatting"]
@@ -12,6 +15,7 @@ license = "Apache-2.0"
 name = "turtlefmt"
 readme = "README.md"
 repository = "https://github.com/helsing-ai/turtlefmt"
+homepage = "https://github.com/helsing-ai/turtlefmt"
 rust-version = "1.81.0"
 version = "0.1.2"
 
