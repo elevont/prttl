@@ -31,46 +31,30 @@ pub fn blank_nodes(a: &BlankNode, b: &BlankNode) -> Ordering {
 }
 
 #[must_use]
-pub fn blank_node_refs<'graph>(a: &BlankNodeRef<'graph>, b: &BlankNodeRef<'graph>) -> Ordering {
-    a.as_str().cmp(b.as_str())
-}
-
-#[must_use]
-pub fn t_blank_nodes<'graph>(
+pub fn blank_node_refs<'graph>(
     context: &SortingContext<'graph>,
-    a: &TBlankNode<'graph>,
-    b: &TBlankNode<'graph>,
+    a: &BlankNodeRef<'graph>,
+    b: &BlankNodeRef<'graph>,
 ) -> Ordering {
     if context.options.prtyr_sorting {
-        t_blank_nodes_with_prtyr(context, a, b)
+        blank_node_refs_with_prtyr(context, a, b)
     } else {
-        t_blank_nodes_by_label(context, a, b)
+        blank_node_refs_by_label(context, a, b)
     }
 }
 
 #[must_use]
-fn t_blank_nodes_by_label<'graph>(
+pub fn blank_node_refs_with_prtyr<'graph>(
     context: &SortingContext<'graph>,
-    a: &TBlankNode<'graph>,
-    b: &TBlankNode<'graph>,
-) -> Ordering {
-    let a_bn = a.node.0.as_str();
-    let b_bn = b.node.0.as_str();
-    a_bn.cmp(b_bn)
-}
-
-#[must_use]
-fn t_blank_nodes_with_prtyr<'graph>(
-    context: &SortingContext<'graph>,
-    a: &TBlankNode<'graph>,
-    b: &TBlankNode<'graph>,
+    a: &BlankNodeRef<'graph>,
+    b: &BlankNodeRef<'graph>,
 ) -> Ordering {
     let graph = context.graph;
 
     let a_sorting_id_opt =
-        graph.object_for_subject_predicate(SubjectRef::BlankNode(a.node.0), *prtyr::SORTING_ID);
+        graph.object_for_subject_predicate(SubjectRef::BlankNode(*a), *prtyr::SORTING_ID);
     let b_sorting_id_opt =
-        graph.object_for_subject_predicate(SubjectRef::BlankNode(b.node.0), *prtyr::SORTING_ID);
+        graph.object_for_subject_predicate(SubjectRef::BlankNode(*b), *prtyr::SORTING_ID);
 
     match (a_sorting_id_opt, b_sorting_id_opt) {
         (Some(TermRef::Literal(a_sorting_id)), Some(TermRef::Literal(b_sorting_id))) => {
@@ -87,8 +71,26 @@ fn t_blank_nodes_with_prtyr<'graph>(
         (Some(_), Some(_)) => panic!("At least one prtyr:sortingId value is not a literal"),
         (None, Some(_)) => Ordering::Greater,
         (Some(_), None) => Ordering::Less,
-        (None, None) => t_blank_nodes_by_label(context, a, b),
+        (None, None) => blank_node_refs_by_label(context, a, b),
     }
+}
+
+#[must_use]
+pub fn blank_node_refs_by_label<'graph>(
+    context: &SortingContext<'graph>,
+    a: &BlankNodeRef<'graph>,
+    b: &BlankNodeRef<'graph>,
+) -> Ordering {
+    a.as_str().cmp(b.as_str())
+}
+
+#[must_use]
+pub fn t_blank_nodes<'graph>(
+    context: &SortingContext<'graph>,
+    a: &TBlankNode<'graph>,
+    b: &TBlankNode<'graph>,
+) -> Ordering {
+    blank_node_refs(context, &a.node.0, &b.node.0)
 }
 
 #[must_use]
@@ -161,7 +163,7 @@ pub fn t_subj<'graph>(
         (
             TSubject::BlankNodeLabel(TBlankNodeRef(a)),
             TSubject::BlankNodeLabel(TBlankNodeRef(b)),
-        ) => blank_node_refs(a, b),
+        ) => blank_node_refs(context, a, b),
         (TSubject::BlankNodeAnonymous(a), TSubject::BlankNodeAnonymous(b)) => {
             t_blank_nodes(context, a, b)
         }
@@ -214,7 +216,7 @@ pub fn t_obj<'graph>(
     match (a, b) {
         (TObject::NamedNode(a), TObject::NamedNode(b)) => named_nodes(a, b),
         (TObject::BlankNodeLabel(TBlankNodeRef(a)), TObject::BlankNodeLabel(TBlankNodeRef(b))) => {
-            blank_node_refs(a, b)
+            blank_node_refs(context, a, b)
         }
         (TObject::BlankNodeAnonymous(a), TObject::BlankNodeAnonymous(b)) => {
             t_blank_nodes(context, a, b)
