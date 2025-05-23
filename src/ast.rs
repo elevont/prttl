@@ -593,7 +593,7 @@ fn evaluate_nestable_blank_nodes(g_main: &Graph) -> HashSet<BlankNodeRef<'_>> {
         }
     }
     let duplicate_obj_bns = extract_duplicates(&object_bns);
-    subject_bns.retain(|bn| !duplicate_obj_bns.contains(bn));
+    subject_bns.retain(|bn| object_bns.contains(bn) && !duplicate_obj_bns.contains(bn));
     subject_bns.into_iter().collect()
 }
 
