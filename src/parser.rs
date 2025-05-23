@@ -24,6 +24,9 @@ pub enum Error {
 
     #[error(transparent)]
     TurtleSyntaxError(#[from] oxttl::TurtleSyntaxError),
+
+    #[error("We do not support redefinition of prefixes, which is the case with {0}")]
+    BaseIri(#[from] oxrdf::IriParseError),
 }
 
 pub fn parse(turtle_str: &[u8], options: &Rc<FormatOptions>) -> Result<Input, Error> {
