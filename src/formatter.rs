@@ -314,10 +314,7 @@ impl<'graph> TurtleFormatter<'graph> {
                         write!(context.output, " ")?;
                         let bak_indent = context.indent_level;
                         context.indent_level = 0;
-                        self.fmt_obj(
-                            context,
-                            predicates_conts.first().unwrap().objects.first().unwrap(),
-                        )?;
+                        self.fmt_obj(context, predicates_cont.objects.first().unwrap())?;
                         context.indent_level = bak_indent;
                     } else {
                         context.indent_level += 1;
