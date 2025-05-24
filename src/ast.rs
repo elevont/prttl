@@ -12,6 +12,7 @@ use std::rc::Rc;
 use std::sync::LazyLock;
 
 use oxrdf::vocab::rdf;
+use oxrdf::vocab::xsd;
 use oxrdf::BlankNodeRef;
 use oxrdf::Graph;
 use oxrdf::LiteralRef;
@@ -26,9 +27,29 @@ use crate::options::FormatOptions;
 
 static T_RDF_LIST: LazyLock<TermRef> = LazyLock::new(|| TermRef::NamedNode(rdf::LIST));
 
+/// An AST node.
+pub trait Part {
+    /// Whether this part may have sub-parts.
+    fn is_container(&self) -> bool;
+
+    /// Whether this part has no sub-parts.
+    fn is_empty(&self) -> bool;
+
+    /// Whether this part "is" a single item.
+    ///
+    /// With "single leafed", we mean e.g. a subject with a single predicate with a single object,
+    /// which is its self either a literal, a named node, an empty collection
+    /// or a collection with a single entry,
+    /// which is single leafed its self.
+    /// In short, something that - depending on the formatting options -
+    /// might be printed on a single line.
+    fn is_single_leafed(&self) -> bool;
+}
+
 #[derive(Debug, PartialEq, Eq, Hash)]
 pub enum TSubject<'graph> {
-    NamedNode(NamedNodeRef<'graph>),
+    NamedNode(TNamedNode<'graph>),
+    // PrefixedNamedNode(NamedNodeRef<'graph>, &'graph str, &'graph str),
     BlankNodeLabel(TBlankNodeRef<'graph>),
     // BlankNodeAnonymous(TBlankNode<'graph>),
     BlankNodeAnonymous(TBlankNode<'graph>),
@@ -36,14 +57,45 @@ pub enum TSubject<'graph> {
     Triple(Box<TTriple<'graph>>),
 }
 
-impl<'graph> From<SubjectRef<'graph>> for TSubject<'graph> {
-    fn from(other: SubjectRef<'graph>) -> Self {
+impl<'graph> TSubject<'graph> {
+    fn from(input: &'graph Input, other: SubjectRef<'graph>) -> Self {
         match other {
-            SubjectRef::NamedNode(named_node_ref) => Self::NamedNode(named_node_ref),
+            SubjectRef::NamedNode(named_node_ref) => {
+                Self::NamedNode(TNamedNode::from(input, named_node_ref))
+            }
             SubjectRef::BlankNode(blank_node_ref) => {
                 Self::BlankNodeLabel(TBlankNodeRef(blank_node_ref))
             }
-            SubjectRef::Triple(triple) => Self::Triple(Box::new(TTriple::from(&triple.as_ref()))),
+            SubjectRef::Triple(triple) => {
+                Self::Triple(Box::new(TTriple::from(input, &triple.as_ref())))
+            }
+        }
+    }
+}
+
+impl Part for TSubject<'_> {
+    fn is_container(&self) -> bool {
+        match self {
+            Self::BlankNodeAnonymous(_) | Self::Collection(_) | Self::Triple(_) => true,
+            Self::BlankNodeLabel(_) | Self::NamedNode(_) => false,
+        }
+    }
+
+    fn is_empty(&self) -> bool {
+        match self {
+            Self::BlankNodeAnonymous(bn) => bn.is_empty(),
+            Self::Collection(col) => col.is_empty(),
+            Self::Triple(_triple) => false,
+            Self::BlankNodeLabel(_) | Self::NamedNode(_) => true,
+        }
+    }
+
+    fn is_single_leafed(&self) -> bool {
+        match self {
+            Self::BlankNodeAnonymous(bn) => bn.is_single_leafed(),
+            Self::Collection(col) => col.is_single_leafed(),
+            Self::Triple(triple) => triple.is_single_leafed(),
+            Self::BlankNodeLabel(_) | Self::NamedNode(_) => true,
         }
     }
 }
@@ -66,12 +118,26 @@ pub struct TSubjectCont<'graph> {
     pub predicates: Vec<TPredicateCont<'graph>>,
 }
 
-impl<'graph> From<SubjectRef<'graph>> for TSubjectCont<'graph> {
-    fn from(other: SubjectRef<'graph>) -> Self {
+impl<'graph> TSubjectCont<'graph> {
+    fn from(input: &'graph Input, other: SubjectRef<'graph>) -> Self {
         Self {
-            subject: TSubject::from(other),
+            subject: TSubject::from(input, other),
             predicates: Vec::new(),
         }
+    }
+}
+
+impl Part for TSubjectCont<'_> {
+    fn is_container(&self) -> bool {
+        true
+    }
+
+    fn is_empty(&self) -> bool {
+        self.predicates.is_empty()
+    }
+
+    fn is_single_leafed(&self) -> bool {
+        self.predicates.len() == 1 && self.predicates.first().unwrap().is_single_leafed()
     }
 }
 
@@ -85,25 +151,76 @@ impl<'graph> PredicatesStore<'graph> for TSubjectCont<'graph> {
 }
 
 #[derive(Debug, PartialEq, Eq, Hash)]
-pub struct TPredicate<'graph>(pub NamedNodeRef<'graph>);
+pub enum TNamedNode<'graph> {
+    Plain(NamedNodeRef<'graph>),
+    Prefixed(NamedNodeRef<'graph>, &'graph str, &'graph str),
+}
 
-impl<'graph> From<NamedNodeRef<'graph>> for TPredicate<'graph> {
-    fn from(other: NamedNodeRef<'graph>) -> Self {
-        Self(other)
+impl<'graph> TNamedNode<'graph> {
+    fn from(input: &'graph Input, other: NamedNodeRef<'graph>) -> Self {
+        if let Some((namespace, local_name)) = other
+            .as_str()
+            .rsplit_once('#')
+            .or_else(|| other.as_str().rsplit_once('/'))
+        {
+            let namespace = &other.as_str()[0..=namespace.len()];
+            if let Some(prefix) = input.prefixes_inverted.get(namespace) {
+                return Self::Prefixed(other, prefix, local_name);
+            }
+        }
+        Self::Plain(other)
+    }
+
+    #[must_use]
+    pub const fn as_named_node_ref(&'graph self) -> &'graph NamedNodeRef<'graph> {
+        match self {
+            TNamedNode::Plain(nn) => nn,
+            TNamedNode::Prefixed(nn, _, _) => nn,
+        }
     }
 }
 
-impl Ord for TPredicate<'_> {
+impl Part for TNamedNode<'_> {
+    fn is_container(&self) -> bool {
+        false
+    }
+
+    fn is_empty(&self) -> bool {
+        true
+    }
+
+    fn is_single_leafed(&self) -> bool {
+        true
+    }
+}
+
+impl Ord for TNamedNode<'_> {
     fn cmp(&self, other: &Self) -> Ordering {
-        self.0.as_str().cmp(other.0.as_str())
+        match (self, other) {
+            (TNamedNode::Plain(_), TNamedNode::Prefixed(_, _, _)) => Ordering::Less,
+            (TNamedNode::Prefixed(_, _, _), TNamedNode::Plain(_)) => Ordering::Greater,
+            (TNamedNode::Plain(a), TNamedNode::Plain(b)) => a.as_str().cmp(b.as_str()),
+            (
+                TNamedNode::Prefixed(_a_nn, a_prefix, a_local_name),
+                TNamedNode::Prefixed(_b_nn, b_prefix, b_local_name),
+            ) => {
+                let prefix_cmp = a_prefix.cmp(b_prefix);
+                if prefix_cmp != Ordering::Equal {
+                    return prefix_cmp;
+                }
+                a_local_name.cmp(b_local_name)
+            }
+        }
     }
 }
 
-impl PartialOrd for TPredicate<'_> {
+impl PartialOrd for TNamedNode<'_> {
     fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
         Some(self.cmp(other))
     }
 }
+
+pub type TPredicate<'graph> = TNamedNode<'graph>;
 
 #[derive(Debug, PartialEq, Eq, Hash)]
 pub struct TPredicateCont<'graph> {
@@ -111,19 +228,26 @@ pub struct TPredicateCont<'graph> {
     pub objects: Vec<TObject<'graph>>,
 }
 
-impl<'graph> From<NamedNodeRef<'graph>> for TPredicateCont<'graph> {
-    fn from(other: NamedNodeRef<'graph>) -> Self {
+impl<'graph> TPredicateCont<'graph> {
+    fn from(input: &'graph Input, other: NamedNodeRef<'graph>) -> Self {
         Self {
-            predicate: TPredicate::from(other),
+            predicate: TPredicate::from(input, other),
             objects: Vec::new(),
         }
     }
 }
 
-impl TPredicateCont<'_> {
-    #[must_use]
-    pub fn is_single_item(&self) -> bool {
-        self.objects.len() == 1 && self.objects.first().unwrap().is_single_item()
+impl Part for TPredicateCont<'_> {
+    fn is_container(&self) -> bool {
+        true
+    }
+
+    fn is_empty(&self) -> bool {
+        self.objects.is_empty()
+    }
+
+    fn is_single_leafed(&self) -> bool {
+        self.objects.len() == 1 && self.objects.first().unwrap().is_single_leafed()
     }
 }
 
@@ -148,8 +272,22 @@ impl PartialOrd for TBlankNodeRef<'_> {
     }
 }
 
+impl Part for TBlankNodeRef<'_> {
+    fn is_container(&self) -> bool {
+        false
+    }
+
+    fn is_empty(&self) -> bool {
+        true
+    }
+
+    fn is_single_leafed(&self) -> bool {
+        true
+    }
+}
+
 #[derive(Debug, PartialEq, Eq, Hash)]
-pub struct TLiteralRef<'graph>(pub LiteralRef<'graph>);
+pub struct TLiteralRef<'graph>(pub LiteralRef<'graph>, pub Option<TNamedNode<'graph>>);
 
 impl Ord for TLiteralRef<'_> {
     fn cmp(&self, other: &Self) -> Ordering {
@@ -178,9 +316,23 @@ impl PartialOrd for TLiteralRef<'_> {
     }
 }
 
+impl Part for TLiteralRef<'_> {
+    fn is_container(&self) -> bool {
+        false
+    }
+
+    fn is_empty(&self) -> bool {
+        true
+    }
+
+    fn is_single_leafed(&self) -> bool {
+        true
+    }
+}
+
 #[derive(Debug, PartialEq, Eq, Hash)]
 pub enum TObject<'graph> {
-    NamedNode(NamedNodeRef<'graph>),
+    NamedNode(TNamedNode<'graph>),
     BlankNodeLabel(TBlankNodeRef<'graph>),
     BlankNodeAnonymous(TBlankNode<'graph>),
     Collection(TCollection<'graph>),
@@ -188,21 +340,65 @@ pub enum TObject<'graph> {
     Triple(Box<TTriple<'graph>>),
 }
 
-impl<'graph> From<TermRef<'graph>> for TObject<'graph> {
-    fn from(other: TermRef<'graph>) -> Self {
+impl<'graph> TObject<'graph> {
+    fn from(input: &'graph Input, other: TermRef<'graph>) -> Self {
         match other {
             TermRef::NamedNode(named_node_ref) => {
                 if named_node_ref == rdf::NIL {
                     Self::Collection(TCollection::Empty)
                 } else {
-                    Self::NamedNode(named_node_ref)
+                    Self::NamedNode(TNamedNode::from(input, named_node_ref))
                 }
             }
             TermRef::BlankNode(blank_node_ref) => {
                 Self::BlankNodeLabel(TBlankNodeRef(blank_node_ref))
             }
-            TermRef::Literal(literal_ref) => Self::Literal(TLiteralRef(literal_ref)),
-            TermRef::Triple(triple) => Self::Triple(Box::new(TTriple::from(&triple.as_ref()))),
+            TermRef::Literal(literal_ref) => {
+                let data_type_nn = if literal_ref.datatype() == xsd::STRING
+                    || literal_ref.datatype() == rdf::LANG_STRING
+                {
+                    None
+                } else {
+                    Some(TNamedNode::from(input, literal_ref.datatype()))
+                };
+                Self::Literal(TLiteralRef(literal_ref, data_type_nn))
+            }
+            TermRef::Triple(triple) => {
+                Self::Triple(Box::new(TTriple::from(input, &triple.as_ref())))
+            }
+        }
+    }
+}
+
+impl Part for TObject<'_> {
+    fn is_container(&self) -> bool {
+        match self {
+            Self::NamedNode(_nn) => false,
+            Self::BlankNodeLabel(_bn) => false,
+            Self::BlankNodeAnonymous(_bn) => true,
+            Self::Collection(_col) => true,
+            Self::Literal(_lit) => false,
+            Self::Triple(_triple) => true,
+        }
+    }
+
+    fn is_empty(&self) -> bool {
+        match self {
+            Self::NamedNode(_nn) => true,
+            Self::BlankNodeLabel(_bn) => true,
+            Self::BlankNodeAnonymous(bn) => bn.is_empty(),
+            Self::Collection(col) => col.is_empty(),
+            Self::Literal(_lit) => true,
+            Self::Triple(triple) => triple.is_empty(),
+        }
+    }
+
+    fn is_single_leafed(&self) -> bool {
+        match self {
+            Self::NamedNode(_) | Self::BlankNodeLabel(_) | Self::Literal(_) => true,
+            Self::BlankNodeAnonymous(bn) => bn.is_single_leafed(),
+            Self::Collection(col) => col.is_single_leafed(),
+            Self::Triple(_triple) => false, //triple.is_single_leafed(),
         }
     }
 }
@@ -220,18 +416,6 @@ impl From<&TObject<'_>> for u8 {
     }
 }
 
-impl TObject<'_> {
-    #[must_use]
-    pub fn is_single_item(&self) -> bool {
-        match self {
-            TObject::NamedNode(_) | TObject::BlankNodeLabel(_) | TObject::Literal(_) => true,
-            TObject::BlankNodeAnonymous(bn) => bn.is_single_item(),
-            TObject::Collection(col) => col.is_single_item(),
-            TObject::Triple(_) => false,
-        }
-    }
-}
-
 #[derive(Debug, PartialEq, Eq, Hash)]
 pub struct TCollectionRef<'graph> {
     pub node: TBlankNode<'graph>,
@@ -244,14 +428,21 @@ pub enum TCollection<'graph> {
     Empty,
 }
 
-impl TCollection<'_> {
-    #[must_use]
-    pub fn is_single_item(&self) -> bool {
+impl Part for TCollection<'_> {
+    fn is_container(&self) -> bool {
+        true
+    }
+
+    fn is_empty(&self) -> bool {
+        matches!(self, Self::Empty)
+    }
+
+    fn is_single_leafed(&self) -> bool {
         match self {
-            TCollection::Empty => true,
-            TCollection::WithContent(col) => {
-                col.rest.len() == 1 && col.rest.first().unwrap().is_single_item()
+            Self::WithContent(col) => {
+                col.rest.len() == 1 && col.rest.first().unwrap().is_single_leafed()
             }
+            Self::Empty => true,
         }
     }
 }
@@ -263,13 +454,27 @@ pub struct TTriple<'graph>(
     pub TObject<'graph>,
 );
 
-impl<'graph> From<&TripleRef<'graph>> for TTriple<'graph> {
-    fn from(other: &TripleRef<'graph>) -> Self {
+impl<'graph> TTriple<'graph> {
+    fn from(input: &'graph Input, other: &TripleRef<'graph>) -> Self {
         Self(
-            TSubject::from(other.subject),
-            TPredicate::from(other.predicate),
-            TObject::from(other.object),
+            TSubject::from(input, other.subject),
+            TPredicate::from(input, other.predicate),
+            TObject::from(input, other.object),
         )
+    }
+}
+
+impl Part for TTriple<'_> {
+    fn is_container(&self) -> bool {
+        true
+    }
+
+    fn is_empty(&self) -> bool {
+        false
+    }
+
+    fn is_single_leafed(&self) -> bool {
+        self.0.is_single_leafed() && self.1.is_single_leafed() && self.2.is_single_leafed()
     }
 }
 
@@ -280,6 +485,7 @@ trait PredicatesStore<'graph> {
 
     fn create_graph_entry<'us>(
         &'us mut self,
+        input: &'graph Input,
         g_main: &'graph Graph,
         non_empty_valid_cols: &HashMap<BlankNodeRef<'graph>, Vec<TermRef<'graph>>>,
         nestable_blank_nodes: &HashSet<BlankNodeRef<'graph>>,
@@ -309,13 +515,14 @@ trait PredicatesStore<'graph> {
                 .push(triple.object);
         }
         for (predicate, objects) in predicate_objects {
-            let mut predicate = TPredicateCont::from(predicate);
+            let mut predicate = TPredicateCont::from(input, predicate);
             for object in objects {
-                let mut t_object = TObject::from(object);
+                let mut t_object = TObject::from(input, object);
                 if let TermRef::BlankNode(bn) = object {
                     if let Some(col) = non_empty_valid_cols.get(&bn) {
                         let mut tbn = TBlankNode::from(bn);
                         tbn.create_graph_entry(
+                            input,
                             g_main,
                             non_empty_valid_cols,
                             nestable_blank_nodes,
@@ -324,11 +531,12 @@ trait PredicatesStore<'graph> {
                         )?;
                         t_object = TObject::Collection(TCollection::WithContent(TCollectionRef {
                             node: tbn,
-                            rest: col.iter().map(|term| TObject::from(*term)).collect(),
+                            rest: col.iter().map(|term| TObject::from(input, *term)).collect(),
                         }));
                     } else if nestable_blank_nodes.contains(&bn) {
                         let mut tbn = TBlankNode::from(bn);
                         tbn.create_graph_entry(
+                            input,
                             g_main,
                             non_empty_valid_cols,
                             nestable_blank_nodes,
@@ -377,15 +585,23 @@ impl std::hash::Hash for TBlankNode<'_> {
     }
 }
 
-impl TBlankNode<'_> {
-    #[must_use]
-    pub fn is_single_item(&self) -> bool {
-        self.predicates.len() == 1 && self.predicates.first().unwrap().is_single_item()
+impl Part for TBlankNode<'_> {
+    fn is_container(&self) -> bool {
+        true
+    }
+
+    fn is_empty(&self) -> bool {
+        self.predicates.is_empty()
+    }
+
+    fn is_single_leafed(&self) -> bool {
+        self.predicates.len() == 1 && self.predicates.first().unwrap().is_single_leafed()
     }
 }
 
 pub struct SortingContext<'sorting> {
     pub options: Rc<FormatOptions>,
+    // pub prefixes: &'sorting Vec<(String, String)>,
     pub graph: &'sorting Graph,
 }
 
@@ -581,7 +797,13 @@ fn extract_collection<'graph>(
     Some(col)
 }
 
-fn evaluate_nestable_blank_nodes(g_main: &Graph) -> HashSet<BlankNodeRef<'_>> {
+fn evaluate_nestable_and_unreferenced_blank_nodes<'graph, 'tree>(
+    g_main: &'graph Graph,
+    unreferenced_blank_nodes: &'tree mut HashSet<BlankNodeRef<'graph>>,
+) -> HashSet<BlankNodeRef<'graph>>
+where
+    'graph: 'tree,
+{
     let mut subject_bns = vec![];
     let mut object_bns = vec![];
     for triple in g_main {
@@ -591,6 +813,9 @@ fn evaluate_nestable_blank_nodes(g_main: &Graph) -> HashSet<BlankNodeRef<'_>> {
         if let TermRef::BlankNode(bn_obj) = triple.object {
             object_bns.push(bn_obj);
         }
+    }
+    for subj_bn in subject_bns.iter().filter(|bn| !object_bns.contains(bn)) {
+        unreferenced_blank_nodes.insert(*subj_bn);
     }
     let duplicate_obj_bns = extract_duplicates(&object_bns);
     subject_bns.retain(|bn| object_bns.contains(bn) && !duplicate_obj_bns.contains(bn));
@@ -642,6 +867,7 @@ pub fn subjects(graph: &Graph) -> impl Iterator<Item = SubjectRef<'_>> + '_ {
 
 pub fn construct_tree<'tree, 'graph>(
     tree_root: &'tree mut TRoot<'graph>,
+    unreferenced_blank_nodes: &'tree mut HashSet<BlankNodeRef<'graph>>,
     input: &'graph Input,
 ) -> Result<(), Infallible>
 where
@@ -649,17 +875,22 @@ where
 {
     let col_involved_triples = Rc::new(RefCell::new(Vec::new()));
     let non_empty_valid_cols = extract_non_empty_collections(&input.graph, &col_involved_triples);
-    let nestable_blank_nodes = evaluate_nestable_blank_nodes(&input.graph);
+    let nestable_blank_nodes =
+        evaluate_nestable_and_unreferenced_blank_nodes(&input.graph, unreferenced_blank_nodes);
 
     for subj in subjects(&input.graph) {
+        // let mut anonymize_bn = false;
         if let SubjectRef::BlankNode(bn) = subj {
             if nestable_blank_nodes.contains(&bn) {
                 continue;
+                // } else if unreferenced_blank_nodes.contains(&bn) {
+                //     anonymize_bn = true;
             }
         }
         let level_triples = input.graph.triples_for_subject(subj);
-        let mut parent = TSubjectCont::from(subj);
+        let mut parent = TSubjectCont::from(input, subj);
         parent.create_graph_entry(
+            input,
             &input.graph,
             &non_empty_valid_cols,
             &nestable_blank_nodes,

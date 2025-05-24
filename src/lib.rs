@@ -47,10 +47,9 @@ pub fn run(options: &Rc<FormatOptions>, input_files: &Vec<PathBuf>) -> Result<()
                 .fmt_patch(&patch)
                 .to_string();
             return Err(Error::Check(formatted_patch));
-        } else {
-            fs::write(file, formatted)
-                .map_err(|err| Error::FailedToWriteFormattedFile(file.clone()))?;
         }
+        fs::write(file, formatted)
+            .map_err(|err| Error::FailedToWriteFormattedFile(file.clone()))?;
     }
     Ok(())
 }

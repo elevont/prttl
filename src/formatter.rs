@@ -2,23 +2,21 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
+use crate::ast::Part;
 use crate::ast::{
-    construct_tree, SortingContext, TBlankNode, TBlankNodeRef, TCollection, TLiteralRef, TObject,
-    TPredicateCont, TRoot, TSubject, TSubjectCont, TTriple,
+    construct_tree, SortingContext, TBlankNode, TBlankNodeRef, TCollection, TLiteralRef,
+    TNamedNode, TObject, TPredicateCont, TRoot, TSubject, TSubjectCont, TTriple,
 };
 use crate::context::Context;
 use crate::error::Error;
 use crate::error::FmtResult;
 use crate::options::FormatOptions;
 use oxrdf::{vocab::rdf, vocab::xsd, BlankNodeRef, NamedNodeRef};
-use regex::Regex;
+use std::collections::HashSet;
 use std::fmt::Write;
 use std::rc::Rc;
-use std::sync::LazyLock;
 
 use crate::input::Input;
-
-static RE_NAMESPACE_DIVIDER: LazyLock<Regex> = LazyLock::new(|| Regex::new("[/#]").unwrap());
 
 pub fn format(input: &Input, options: Rc<FormatOptions>) -> FmtResult<String> {
     let mut output = String::new();
@@ -36,22 +34,28 @@ pub fn format(input: &Input, options: Rc<FormatOptions>) -> FmtResult<String> {
 struct TurtleFormatter<'graph> {
     input: &'graph Input,
     options: Rc<FormatOptions>,
+    unreferenced_blank_nodes: HashSet<BlankNodeRef<'graph>>,
     tree: TRoot<'graph>,
 }
 
 impl<'graph> TurtleFormatter<'graph> {
-    const fn new(input: &'graph Input, options: Rc<FormatOptions>) -> Self {
+    fn new(input: &'graph Input, options: Rc<FormatOptions>) -> Self {
         Self {
             input,
             options,
+            unreferenced_blank_nodes: HashSet::new(),
             tree: TRoot::new(),
         }
     }
 
     fn construct_tree(&mut self) {
-        construct_tree(&mut self.tree, self.input)
-            .map_err(|err| Error::FailedToCreateTurtleStructure(err.to_string()))
-            .unwrap();
+        construct_tree(
+            &mut self.tree,
+            &mut self.unreferenced_blank_nodes,
+            self.input,
+        )
+        .map_err(|err| Error::FailedToCreateTurtleStructure(err.to_string()))
+        .unwrap();
 
         let context = SortingContext {
             options: Rc::<_>::clone(&self.options),
@@ -94,7 +98,25 @@ impl<'graph> TurtleFormatter<'graph> {
         Ok(())
     }
 
-    fn fmt_named_node<W: Write>(
+    fn fmt_prefixed_named_node<W: Write>(
+        &self,
+        context: &mut Context<W>,
+        named_node: &NamedNodeRef<'_>,
+        prefix: &str,
+        local_name: &str,
+    ) -> FmtResult<()> {
+        self.write_indent(context)?;
+
+        if *named_node == rdf::TYPE {
+            write!(context.output, "a")?;
+            return Ok(());
+        }
+
+        write!(context.output, "{prefix}:{local_name}")?;
+        Ok(())
+    }
+
+    fn fmt_plain_named_node<W: Write>(
         &self,
         context: &mut Context<W>,
         named_node: &NamedNodeRef<'_>,
@@ -107,23 +129,52 @@ impl<'graph> TurtleFormatter<'graph> {
         }
 
         let iri: &str = named_node.as_str();
+        write!(context.output, "<{iri}>")?;
+        Ok(())
+    }
+    // fn fmt_named_node<W: Write>(
+    //     &self,
+    //     context: &mut Context<W>,
+    //     named_node: &NamedNodeRef<'_>,
+    // ) -> FmtResult<()> {
+    //     self.write_indent(context)?;
 
-        if let Some(base_iri) = self.input.base.as_deref() {
-            if let Some(baseless_iri) = iri.strip_prefix(base_iri) {
-                write!(context.output, "<{baseless_iri}>")?;
-                return Ok(());
+    //     if *named_node == rdf::TYPE {
+    //         write!(context.output, "a")?;
+    //         return Ok(());
+    //     }
+
+    //     let iri: &str = named_node.as_str();
+
+    //     if let Some(base_iri) = self.input.base.as_deref() {
+    //         if let Some(baseless_iri) = iri.strip_prefix(base_iri) {
+    //             write!(context.output, "<{baseless_iri}>")?;
+    //             return Ok(());
+    //         }
+    //     }
+
+    //     let local_name = RE_NAMESPACE_DIVIDER.split(iri).last().unwrap();
+    //     let iri: &str = named_node.as_str();
+    //     let namespace = &iri[0..(iri.len() - local_name.len())];
+    //     if let Some(prefix) = self.input.prefixes_inverted.get(namespace) {
+    //         write!(context.output, "{prefix}:{local_name}")?;
+    //     } else {
+    //         write!(context.output, "<{iri}>")?;
+    //     }
+    //     Ok(())
+    // }
+
+    fn fmt_named_node<W: Write>(
+        &self,
+        context: &mut Context<W>,
+        predicate: &TNamedNode<'_>,
+    ) -> FmtResult<()> {
+        match predicate {
+            TNamedNode::Plain(named_node_ref) => self.fmt_plain_named_node(context, named_node_ref),
+            TNamedNode::Prefixed(named_node_ref, prefix, local_name) => {
+                self.fmt_prefixed_named_node(context, named_node_ref, prefix, local_name)
             }
         }
-
-        let local_name = RE_NAMESPACE_DIVIDER.split(iri).last().unwrap();
-        let iri: &str = named_node.as_str();
-        let namespace = &iri[0..(iri.len() - local_name.len())];
-        if let Some(prefix) = self.input.prefixes_inverted.get(namespace) {
-            write!(context.output, "{prefix}:{local_name}")?;
-        } else {
-            write!(context.output, "<{iri}>")?;
-        }
-        Ok(())
     }
 
     fn fmt_blank_node_label<W: Write>(
@@ -132,7 +183,11 @@ impl<'graph> TurtleFormatter<'graph> {
         blank_node: &BlankNodeRef<'_>,
     ) -> FmtResult<()> {
         self.write_indent(context)?;
-        write!(context.output, "{blank_node}")?;
+        if self.unreferenced_blank_nodes.contains(blank_node) {
+            write!(context.output, "[]")?;
+        } else {
+            write!(context.output, "{blank_node}")?;
+        }
         Ok(())
     }
 
@@ -157,7 +212,7 @@ impl<'graph> TurtleFormatter<'graph> {
         write!(context.output, "<<( ")?;
         self.fmt_subj(context, &triple.0)?;
         write!(context.output, " ")?;
-        self.fmt_named_node(context, &triple.1 .0)?;
+        self.fmt_named_node(context, &triple.1)?;
         write!(context.output, " ")?;
         self.fmt_obj(context, &triple.2)?;
         write!(context.output, " )>>")?;
@@ -174,7 +229,7 @@ impl<'graph> TurtleFormatter<'graph> {
         match collection {
             TCollection::Empty => (),
             TCollection::WithContent(collection_ref) => {
-                if !self.options.single_object_on_new_line && collection.is_single_item() {
+                if !self.options.single_object_on_new_line && collection.is_single_leafed() {
                     write!(context.output, " ")?;
                     let bak_indent = context.indent_level;
                     context.indent_level = 0;
@@ -223,11 +278,14 @@ impl<'graph> TurtleFormatter<'graph> {
                 | xsd::INT
                 | xsd::SHORT
                 | xsd::BYTE => write!(context.output, "{}", literal.0.value())?,
-                dt => {
+                _dt => {
                     write!(context.output, "\"{}\"^^", literal.0.value())?;
                     let bak_indent = context.indent_level;
                     context.indent_level = 0;
-                    self.fmt_named_node(context, &dt)?;
+                    let nice_dt = literal.1.as_ref().expect(
+                        "The TRoot generating algorithm failed to supply a datatype for a literal",
+                    );
+                    self.fmt_named_node(context, nice_dt)?;
                     context.indent_level = bak_indent;
                 }
             }
@@ -255,6 +313,7 @@ impl<'graph> TurtleFormatter<'graph> {
         &self,
         context: &mut Context<W>,
         subj: &TSubject<'graph>,
+        // top_level: bool,
     ) -> FmtResult<()> {
         match subj {
             TSubject::NamedNode(named_node_ref) => self.fmt_named_node(context, named_node_ref)?,
@@ -284,33 +343,32 @@ impl<'graph> TurtleFormatter<'graph> {
     fn fmt_predicates<W: Write>(
         &self,
         context: &mut Context<W>,
-        predicates_conts: &Vec<TPredicateCont<'graph>>,
+        predicates_containers: &Vec<TPredicateCont<'graph>>,
         final_dot: bool,
     ) -> FmtResult<()> {
-        if !predicates_conts.is_empty() {
+        if !predicates_containers.is_empty() {
             if !self.options.single_object_on_new_line
-                && predicates_conts.len() == 1
-                && predicates_conts.first().unwrap().is_single_item()
+                && predicates_containers.len() == 1
+                && predicates_containers.first().unwrap().is_single_leafed()
             {
+                let predicates_cont = predicates_containers.first().unwrap();
                 write!(context.output, " ")?;
                 let bak_indent = context.indent_level;
                 context.indent_level = 0;
-                self.fmt_named_node(context, &predicates_conts.first().unwrap().predicate.0)?;
+                self.fmt_named_node(context, &predicates_cont.predicate)?;
                 write!(context.output, " ")?;
-                self.fmt_obj(
-                    context,
-                    predicates_conts.first().unwrap().objects.first().unwrap(),
-                )?;
-                write!(context.output, " ")?;
+                self.fmt_obj(context, predicates_cont.objects.first().unwrap())?;
+                write!(context.output, " .")?;
                 context.indent_level = bak_indent;
                 // writeln!(context.output, " ;")?;
                 // context.indent_level += 1;
             } else {
                 writeln!(context.output)?;
                 context.indent_level += 1;
-                for predicates_cont in predicates_conts {
-                    self.fmt_named_node(context, &predicates_cont.predicate.0)?;
-                    if !self.options.single_object_on_new_line && predicates_cont.is_single_item() {
+                for predicates_cont in predicates_containers {
+                    self.fmt_named_node(context, &predicates_cont.predicate)?;
+                    if !self.options.single_object_on_new_line && predicates_cont.is_single_leafed()
+                    {
                         write!(context.output, " ")?;
                         let bak_indent = context.indent_level;
                         context.indent_level = 0;

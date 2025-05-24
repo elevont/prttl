@@ -5,20 +5,20 @@
 use crate::{
     ast::{
         SortingContext, TBlankNode, TBlankNodeRef, TCollection, TCollectionRef, TLiteralRef,
-        TObject, TPredicateCont, TSubject, TSubjectCont, TTriple,
+        TNamedNode, TObject, TPredicateCont, TSubject, TSubjectCont, TTriple,
     },
     vocab::prtyr,
 };
-use oxrdf::{vocab::rdf, BlankNode, BlankNodeRef, LiteralRef, NamedNodeRef, SubjectRef, TermRef};
+use oxrdf::{vocab::rdf, BlankNode, BlankNodeRef, SubjectRef, TermRef};
 use std::cmp::Ordering;
 
 #[must_use]
-pub fn named_nodes<'graph>(a: &NamedNodeRef<'graph>, b: &NamedNodeRef<'graph>) -> Ordering {
+pub fn named_nodes<'graph>(a: &TNamedNode<'graph>, b: &TNamedNode<'graph>) -> Ordering {
     if a == b {
         Ordering::Equal
-    } else if *a == rdf::TYPE {
+    } else if *a.as_named_node_ref() == rdf::TYPE {
         Ordering::Less
-    } else if *b == rdf::TYPE {
+    } else if *b.as_named_node_ref() == rdf::TYPE {
         Ordering::Greater
     } else {
         a.cmp(b)
@@ -142,7 +142,7 @@ pub fn triples<'graph>(
     if cmp_subj != Ordering::Equal {
         return cmp_subj;
     }
-    let cmp_pred = pred_ref(context, &a.1 .0, &b.1 .0);
+    let cmp_pred = pred_ref(context, &a.1, &b.1);
     if cmp_pred != Ordering::Equal {
         return cmp_pred;
     }
@@ -189,8 +189,8 @@ pub fn t_subj_cont<'graph>(
 #[must_use]
 pub fn pred_ref<'graph>(
     context: &SortingContext<'graph>,
-    a: &NamedNodeRef<'graph>,
-    b: &NamedNodeRef<'graph>,
+    a: &TNamedNode<'graph>,
+    b: &TNamedNode<'graph>,
 ) -> Ordering {
     named_nodes(a, b)
 }
@@ -201,7 +201,7 @@ pub fn t_pred_cont<'graph>(
     a: &TPredicateCont<'graph>,
     b: &TPredicateCont<'graph>,
 ) -> Ordering {
-    pred_ref(context, &a.predicate.0, &b.predicate.0)
+    pred_ref(context, &a.predicate, &b.predicate)
 }
 
 #[must_use]
@@ -222,7 +222,7 @@ pub fn t_obj<'graph>(
             t_blank_nodes(context, a, b)
         }
         (TObject::Collection(a), TObject::Collection(b)) => t_collections(context, a, b),
-        (TObject::Literal(TLiteralRef(a)), TObject::Literal(TLiteralRef(b))) => literals(a, b),
+        (TObject::Literal(a), TObject::Literal(b)) => literals(a, b),
         (TObject::Triple(a), TObject::Triple(b)) => triples(context, a, b),
         (a, b) => {
             let a_type_num: u8 = a.into();
@@ -233,16 +233,25 @@ pub fn t_obj<'graph>(
 }
 
 #[must_use]
-pub fn literals<'graph>(a: &LiteralRef<'graph>, b: &LiteralRef<'graph>) -> Ordering {
-    let cmp_value = a.value().cmp(b.value());
+pub fn literals<'graph>(a: &TLiteralRef<'graph>, b: &TLiteralRef<'graph>) -> Ordering {
+    let cmp_value = a.0.value().cmp(b.0.value());
     if cmp_value != Ordering::Equal {
         return cmp_value;
     }
-    let cmp_datatype = a.datatype().cmp(&b.datatype());
+    let nice_dt_cmp = match (a.1.as_ref(), b.1.as_ref()) {
+        (Some(a), Some(b)) => named_nodes(a, b),
+        (Some(_a), None) => Ordering::Less,
+        (None, Some(_b)) => Ordering::Greater,
+        (None, None) => Ordering::Equal,
+    };
+    if nice_dt_cmp != Ordering::Equal {
+        return nice_dt_cmp;
+    }
+    let cmp_datatype = a.0.datatype().cmp(&b.0.datatype());
     if cmp_datatype != Ordering::Equal {
         return cmp_datatype;
     }
-    match (a.language(), b.language()) {
+    match (a.0.language(), b.0.language()) {
         (Some(a), Some(b)) => a.cmp(b),
         (Some(_a), None) => Ordering::Less,
         (None, Some(_b)) => Ordering::Greater,
