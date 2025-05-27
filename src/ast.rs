@@ -196,27 +196,33 @@ impl<'graph> PredicatesStore<'graph> for TSubjectCont<'graph> {
 pub enum TNamedNode<'graph> {
     Plain(NamedNodeRef<'graph>),
     Prefixed(NamedNodeRef<'graph>, &'graph str, &'graph str),
+    Based(NamedNodeRef<'graph>, &'graph str),
 }
 
 impl<'graph> TNamedNode<'graph> {
-    fn from(input: &'graph Input, other: NamedNodeRef<'graph>) -> Self {
-        if let Some((namespace, local_name)) = other
+    fn from(input: &'graph Input, named_node: NamedNodeRef<'graph>) -> Self {
+        if let Some((namespace, local_name)) = named_node
             .as_str()
             .rsplit_once('#')
-            .or_else(|| other.as_str().rsplit_once('/'))
+            .or_else(|| named_node.as_str().rsplit_once('/'))
         {
-            let namespace = &other.as_str()[0..=namespace.len()];
+            let namespace = &named_node.as_str()[0..=namespace.len()];
             if let Some(prefix) = input.prefixes_inverted.get(namespace) {
-                return Self::Prefixed(other, prefix, local_name);
+                return Self::Prefixed(named_node, prefix, local_name);
             }
         }
-        Self::Plain(other)
+        if let Some(base) = input.base.as_deref() {
+            if named_node.as_str().starts_with(base) {
+                return Self::Based(named_node, &named_node.as_str()[base.len()..]);
+            }
+        }
+        Self::Plain(named_node)
     }
 
     #[must_use]
     pub const fn as_named_node_ref(&'graph self) -> &'graph NamedNodeRef<'graph> {
         match self {
-            Self::Plain(nn) | Self::Prefixed(nn, _, _) => nn,
+            Self::Plain(nn) | Self::Prefixed(nn, _, _) | Self::Based(nn, _) => nn,
         }
     }
 }
@@ -239,8 +245,12 @@ impl Ord for TNamedNode<'_> {
     fn cmp(&self, other: &Self) -> Ordering {
         match (self, other) {
             (TNamedNode::Plain(_), TNamedNode::Prefixed(_, _, _)) => Ordering::Less,
+            (TNamedNode::Plain(_), TNamedNode::Based(_, _)) => Ordering::Less,
             (TNamedNode::Prefixed(_, _, _), TNamedNode::Plain(_)) => Ordering::Greater,
-            (TNamedNode::Plain(a), TNamedNode::Plain(b)) => a.as_str().cmp(b.as_str()),
+            (TNamedNode::Prefixed(_, _, _), TNamedNode::Based(_, _)) => Ordering::Greater,
+            (TNamedNode::Based(_, _), TNamedNode::Plain(_)) => Ordering::Greater,
+            (TNamedNode::Based(_, _), TNamedNode::Prefixed(_, _, _)) => Ordering::Less,
+            (TNamedNode::Plain(a_nn), TNamedNode::Plain(b_nn)) => a_nn.as_str().cmp(b_nn.as_str()),
             (
                 TNamedNode::Prefixed(_a_nn, a_prefix, a_local_name),
                 TNamedNode::Prefixed(_b_nn, b_prefix, b_local_name),
@@ -251,6 +261,10 @@ impl Ord for TNamedNode<'_> {
                 }
                 a_local_name.cmp(b_local_name)
             }
+            (
+                TNamedNode::Based(_a_nn, a_additional_name),
+                TNamedNode::Based(_b_nn, b_additional_name),
+            ) => a_additional_name.cmp(b_additional_name),
         }
     }
 }
@@ -409,9 +423,7 @@ impl<'us, 'graph> TObject<'graph> {
                 )
                 .expect("Infallible")
                 {
-                    Some(TBlankNodeOrCollection::BlankNode(bn)) => {
-                        TObject::BlankNodeAnonymous(bn)
-                    }
+                    Some(TBlankNodeOrCollection::BlankNode(bn)) => TObject::BlankNodeAnonymous(bn),
                     Some(TBlankNodeOrCollection::Collection(col)) => Self::Collection(col.clone()),
                     None => Self::BlankNodeLabel(TBlankNodeRef(blank_node_ref)),
                 }

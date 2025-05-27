@@ -218,6 +218,17 @@ impl<'graph> TurtleFormatter<'graph> {
         Ok(())
     }
 
+    fn fmt_based_named_node<W: Write>(
+        &self,
+        context: &mut Context<W>,
+        _named_node: &NamedNodeRef<'_>,
+        additional_name: &str,
+    ) -> FmtResult<()> {
+        self.write_indent(context)?;
+        write!(context.output, "<{additional_name}>")?;
+        Ok(())
+    }
+
     fn fmt_plain_named_node<W: Write>(
         &self,
         context: &mut Context<W>,
@@ -244,6 +255,9 @@ impl<'graph> TurtleFormatter<'graph> {
             TNamedNode::Plain(named_node_ref) => self.fmt_plain_named_node(context, named_node_ref),
             TNamedNode::Prefixed(named_node_ref, prefix, local_name) => {
                 self.fmt_prefixed_named_node(context, named_node_ref, prefix, local_name)
+            }
+            TNamedNode::Based(named_node_ref, additional_name) => {
+                self.fmt_based_named_node(context, named_node_ref, additional_name)
             }
         }
     }
