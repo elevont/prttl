@@ -41,6 +41,7 @@ print_stderr = "warn"
 #default_trait_access = "allow"
 #option_if_let_else = "allow"
 struct_excessive_bools = "allow"
+else-if-without-else = "allow"
 
 [dependencies]
 clap = { version = "4.5", features = ["cargo", "derive"] }
