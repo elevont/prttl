@@ -19,21 +19,55 @@ pub enum Error {
     #[error("We do not support redefinition of prefixes, which is the case with {0}")]
     PrefixRedefinition(String),
 
-    #[error("We do not support more then one base IRI defined per file")]
+    #[error(
+        "We do not support multiple prefixes for a single namespace. \
+Please consider refactoring the input first. \
+More info can be found at ...
+Conflicting namespaces:
+{0:#?}"
+    )] // TODO Add link to README?
+    MultiplePrefixesForNamespace(HashMap<String, Vec<String>>),
+
+    #[error(
+        "We do not support more then one base IRI defined per file. \
+Please consider refactoring the input first. \
+More info can be found at ..."
+    )] // TODO Add link to README?
     MultipleBases,
 
     #[error(transparent)]
     TurtleSyntaxError(#[from] oxttl::TurtleSyntaxError),
 
-    #[error("We do not support redefinition of prefixes, which is the case with {0}")]
+    #[error("Failed to parse as base IRI: '{0}'")]
     BaseIri(#[from] oxrdf::IriParseError),
+}
+
+fn find_duplicate_values(map: &BTreeMap<String, String>) -> HashMap<String, Vec<String>> {
+    let mut value2keys = HashMap::new();
+    for (key, value) in map {
+        value2keys
+            .entry(value)
+            .or_insert_with(Vec::default)
+            .push(key);
+    }
+    value2keys
+        .into_iter()
+        .filter_map(|(value, keys)| {
+            if keys.len() > 1 {
+                Some((value.to_owned(), keys.into_iter().cloned().collect()))
+            } else {
+                None
+            }
+        })
+        .collect::<HashMap<_, _>>()
 }
 
 pub fn parse(turtle_str: &[u8], options: &Rc<FormatOptions>) -> Result<Input, Error> {
     let mut graph = Graph::new();
 
-    let mut parser = TurtleParser::new().low_level();
+    let mut parser = TurtleParser::new().with_quoted_triples().low_level();
     parser.extend_from_slice(turtle_str.as_ref());
+    parser.end();
     let mut base = None;
     let mut prefixes = HashMap::new();
     while let Some(triple_res) = parser.parse_next() {
@@ -66,7 +100,12 @@ pub fn parse(turtle_str: &[u8], options: &Rc<FormatOptions>) -> Result<Input, Er
     }
 
     let prefixes_sorted = BTreeMap::from_iter(prefixes.clone());
-    let prefixes_inverted = prefixes.into_iter().map(|(k, v)| (v, k)).collect();
+    let prefixes_inverted: HashMap<String, String> =
+        prefixes.into_iter().map(|(k, v)| (v, k)).collect();
+    if prefixes_sorted.len() > prefixes_inverted.len() {
+        let duplicate_prefixes = find_duplicate_values(&prefixes_sorted);
+        return Err(Error::MultiplePrefixesForNamespace(duplicate_prefixes));
+    }
 
     let input = Input {
         base,

@@ -23,8 +23,6 @@ pub const A_S_INDENTATION: char = 'i';
 // pub const A_S_INPUT: char = 'I';
 pub const A_L_LABEL_ALL_BLANK_NODES: &str = "label-all-blank-nodes";
 pub const A_S_LABEL_ALL_BLANK_NODES: char = 'l';
-pub const A_L_OUTPUT: &str = "output";
-pub const A_S_OUTPUT: char = 'O';
 pub const A_L_NO_PRTYR_SORTING: &str = "no-prtyr-sorting";
 // pub const A_S_NO_PRTYR_SORTING: char = 'p';
 pub const A_L_NO_SPARQL_SYNTAX: &str = "no-sparql-syntax";
@@ -126,18 +124,6 @@ fn arg_indentation() -> Arg {
 //         .value_name("FILE")
 //         .default_value("-")
 // }
-
-fn arg_output() -> Arg {
-    Arg::new(A_L_OUTPUT)
-        .help("the output RDF/Turtle file to write; '-' for stdout")
-        .num_args(1)
-        .short(A_S_OUTPUT)
-        .long(A_L_OUTPUT)
-        .action(ArgAction::Set)
-        .value_hint(ValueHint::FilePath)
-        .value_name("FILE")
-        .default_value("-")
-}
 
 fn arg_no_prtyr_sorting() -> Arg {
     Arg::new(A_L_NO_PRTYR_SORTING)
@@ -384,6 +370,7 @@ pub fn init() -> Result<(FormatOptions, Vec<PathBuf>), InitError> {
     let prtyr_sorting = !args.get_flag(A_L_NO_PRTYR_SORTING);
     let sparql_syntax = !args.get_flag(A_L_NO_SPARQL_SYNTAX);
     let single_object_on_new_line = args.get_flag(A_L_SINGLE_ENTRY_ON_NEW_LINE);
+    let warn_unsupported_numbers = true;
 
     let indentation = " ".repeat(indentation_spaces);
     let src: Vec<PathBuf> = args
@@ -401,6 +388,7 @@ pub fn init() -> Result<(FormatOptions, Vec<PathBuf>), InitError> {
             sparql_syntax,
             max_nesting,
             canonicalize,
+            warn_unsupported_numbers,
         },
         src,
     ))

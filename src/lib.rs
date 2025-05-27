@@ -49,7 +49,7 @@ pub fn run(options: &Rc<FormatOptions>, input_files: &Vec<PathBuf>) -> Result<()
             return Err(Error::Check(formatted_patch));
         }
         fs::write(file, formatted)
-            .map_err(|err| Error::FailedToWriteFormattedFile(file.clone()))?;
+            .map_err(|err| Error::FailedToWriteFormattedFile(err, file.clone()))?;
     }
     Ok(())
 }
@@ -60,13 +60,18 @@ pub fn add_files_with_suffix(
     files: &mut Vec<PathBuf>,
 ) -> Result<(), Error> {
     for entry in fs::read_dir(dir).map_err(|err| {
-        Error::FailedToListFilesInInputDir(dir.to_path_buf(), FilesListErrorType::ReadDir)
+        Error::FailedToListFilesInInputDir(err, dir.to_path_buf(), FilesListErrorType::ReadDir)
     })? {
         let entry = entry.map_err(|err| {
-            Error::FailedToListFilesInInputDir(dir.to_path_buf(), FilesListErrorType::ExtractEntry)
+            Error::FailedToListFilesInInputDir(
+                err,
+                dir.to_path_buf(),
+                FilesListErrorType::ExtractEntry,
+            )
         })?;
         let entry_type = entry.file_type().map_err(|err| {
             Error::FailedToListFilesInInputDir(
+                err,
                 dir.to_path_buf(),
                 FilesListErrorType::EvaluateFileType,
             )

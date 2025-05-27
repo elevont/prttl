@@ -12,11 +12,18 @@ use crate::error::Error;
 use crate::error::FmtResult;
 use crate::options::FormatOptions;
 use oxrdf::{vocab::rdf, vocab::xsd, BlankNodeRef, NamedNodeRef};
+use regex::Regex;
 use std::collections::HashSet;
 use std::fmt::Write;
 use std::rc::Rc;
+use std::sync::LazyLock;
 
 use crate::input::Input;
+
+/// The regex to match a DOUBLE from the Turtle grammar,
+/// which is *not* equivalent with xsd:double!
+static RE_TURTLE_DOUBLE: LazyLock<Regex> =
+    LazyLock::new(|| Regex::new("[+-]?(([0-9]+([.][0-9]*)?)|([.][0-9]+))[eE][+-]?[0-9]+").unwrap());
 
 pub fn format(input: &Input, options: Rc<FormatOptions>) -> FmtResult<String> {
     let mut output = String::new();
@@ -26,7 +33,7 @@ pub fn format(input: &Input, options: Rc<FormatOptions>) -> FmtResult<String> {
     };
     let mut formatter = TurtleFormatter::new(input, options);
     formatter.construct_tree();
-    // println!("{:#?}", formatter.tree);
+    tracing::debug!("{:#?}", formatter.tree);
     formatter.fmt_doc(&mut context)?;
     Ok(output)
 }
@@ -63,6 +70,93 @@ impl<'graph> TurtleFormatter<'graph> {
         };
         self.tree.sort(&context);
     }
+}
+
+fn escape_local_name(value: &str) -> Option<String> {
+    // TODO: PLX
+    // [168s] 	PN_LOCAL 	::= 	(PN_CHARS_U | ':' | [0-9] | PLX) ((PN_CHARS | '.' | ':' | PLX)* (PN_CHARS | ':' | PLX))?
+    let mut output = String::with_capacity(value.len());
+    let mut chars = value.chars();
+    let first = chars.next()?;
+    if is_possible_pn_chars_u(first) || first == ':' || first.is_ascii_digit() {
+        output.push(first);
+    } else if can_be_escaped_in_local_name(first) {
+        output.push('\\');
+        output.push(first);
+    } else {
+        tracing::debug!("Can not escape (first) char in local name: '{first}'");
+        return None;
+    }
+
+    while let Some(c) = chars.next() {
+        if is_possible_pn_chars(c) || c == ':' || (c == '.' && !chars.as_str().is_empty()) {
+            output.push(c);
+        } else if can_be_escaped_in_local_name(c) {
+            output.push('\\');
+            output.push(c);
+        } else {
+            tracing::debug!("Can not escape char in local name: '{c}'");
+            return None;
+        }
+    }
+
+    Some(output)
+}
+
+// [157s]  PN_CHARS_BASE  ::=  [A-Z] | [a-z] | [#x00C0-#x00D6] | [#x00D8-#x00F6] | [#x00F8-#x02FF] | [#x0370-#x037D] | [#x037F-#x1FFF] | [#x200C-#x200D] | [#x2070-#x218F] | [#x2C00-#x2FEF] | [#x3001-#xD7FF] | [#xF900-#xFDCF] | [#xFDF0-#xFFFD] | [#x10000-#xEFFFF]
+const fn is_possible_pn_chars_base(c: char) -> bool {
+    matches!(c,
+        'A'..='Z'
+        | 'a'..='z'
+        | '\u{00C0}'..='\u{00D6}'
+        | '\u{00D8}'..='\u{00F6}'
+        | '\u{00F8}'..='\u{02FF}'
+        | '\u{0370}'..='\u{037D}'
+        | '\u{037F}'..='\u{1FFF}'
+        | '\u{200C}'..='\u{200D}'
+        | '\u{2070}'..='\u{218F}'
+        | '\u{2C00}'..='\u{2FEF}'
+        | '\u{3001}'..='\u{D7FF}'
+        | '\u{F900}'..='\u{FDCF}'
+        | '\u{FDF0}'..='\u{FFFD}'
+        | '\u{10000}'..='\u{EFFFF}')
+}
+
+// [158s]  PN_CHARS_U  ::=  PN_CHARS_BASE | '_'
+pub(super) const fn is_possible_pn_chars_u(c: char) -> bool {
+    is_possible_pn_chars_base(c) || c == '_'
+}
+
+// [160s]  PN_CHARS  ::=  PN_CHARS_U | '-' | [0-9] | #x00B7 | [#x0300-#x036F] | [#x203F-#x2040]
+pub(crate) const fn is_possible_pn_chars(c: char) -> bool {
+    is_possible_pn_chars_u(c)
+        || matches!(c,
+        '-' | '0'..='9' | '\u{00B7}' | '\u{0300}'..='\u{036F}' | '\u{203F}'..='\u{2040}')
+}
+
+const fn can_be_escaped_in_local_name(c: char) -> bool {
+    matches!(
+        c,
+        '_' | '~'
+            | '.'
+            | '-'
+            | '!'
+            | '$'
+            | '&'
+            | '\''
+            | '('
+            | ')'
+            | '*'
+            | '+'
+            | ','
+            | ';'
+            | '='
+            | '/'
+            | '?'
+            | '#'
+            | '@'
+            | '%'
+    )
 }
 
 impl<'graph> TurtleFormatter<'graph> {
@@ -112,7 +206,15 @@ impl<'graph> TurtleFormatter<'graph> {
             return Ok(());
         }
 
-        write!(context.output, "{prefix}:{local_name}")?;
+        if local_name.is_empty() {
+            write!(context.output, "{prefix}:")?;
+        } else {
+            write!(
+                context.output,
+                "{prefix}:{}",
+                escape_local_name(local_name).expect("Failed to escape local name")
+            )?;
+        }
         Ok(())
     }
 
@@ -132,44 +234,13 @@ impl<'graph> TurtleFormatter<'graph> {
         write!(context.output, "<{iri}>")?;
         Ok(())
     }
-    // fn fmt_named_node<W: Write>(
-    //     &self,
-    //     context: &mut Context<W>,
-    //     named_node: &NamedNodeRef<'_>,
-    // ) -> FmtResult<()> {
-    //     self.write_indent(context)?;
-
-    //     if *named_node == rdf::TYPE {
-    //         write!(context.output, "a")?;
-    //         return Ok(());
-    //     }
-
-    //     let iri: &str = named_node.as_str();
-
-    //     if let Some(base_iri) = self.input.base.as_deref() {
-    //         if let Some(baseless_iri) = iri.strip_prefix(base_iri) {
-    //             write!(context.output, "<{baseless_iri}>")?;
-    //             return Ok(());
-    //         }
-    //     }
-
-    //     let local_name = RE_NAMESPACE_DIVIDER.split(iri).last().unwrap();
-    //     let iri: &str = named_node.as_str();
-    //     let namespace = &iri[0..(iri.len() - local_name.len())];
-    //     if let Some(prefix) = self.input.prefixes_inverted.get(namespace) {
-    //         write!(context.output, "{prefix}:{local_name}")?;
-    //     } else {
-    //         write!(context.output, "<{iri}>")?;
-    //     }
-    //     Ok(())
-    // }
 
     fn fmt_named_node<W: Write>(
         &self,
         context: &mut Context<W>,
-        predicate: &TNamedNode<'_>,
+        named_node: &TNamedNode<'_>,
     ) -> FmtResult<()> {
-        match predicate {
+        match named_node {
             TNamedNode::Plain(named_node_ref) => self.fmt_plain_named_node(context, named_node_ref),
             TNamedNode::Prefixed(named_node_ref, prefix, local_name) => {
                 self.fmt_prefixed_named_node(context, named_node_ref, prefix, local_name)
@@ -209,13 +280,15 @@ impl<'graph> TurtleFormatter<'graph> {
         triple: &TTriple<'graph>,
     ) -> FmtResult<()> {
         self.write_indent(context)?;
-        write!(context.output, "<<( ")?;
+        // write!(context.output, "<<( ")?;
+        write!(context.output, "<< ")?;
         self.fmt_subj(context, &triple.0)?;
         write!(context.output, " ")?;
         self.fmt_named_node(context, &triple.1)?;
         write!(context.output, " ")?;
         self.fmt_obj(context, &triple.2)?;
-        write!(context.output, " )>>")?;
+        // write!(context.output, " )>>")?;
+        write!(context.output, " >>")?;
         Ok(())
     }
 
@@ -258,6 +331,23 @@ impl<'graph> TurtleFormatter<'graph> {
         Ok(())
     }
 
+    fn fmt_literal_with_type<W: Write>(
+        &self,
+        context: &mut Context<W>,
+        literal: &TLiteralRef<'graph>,
+    ) -> FmtResult<()> {
+        write!(context.output, "\"{}\"^^", literal.0.value())?;
+        let bak_indent = context.indent_level;
+        context.indent_level = 0;
+        let nice_dt = literal
+            .1
+            .as_ref()
+            .expect("The TRoot generating algorithm failed to supply a datatype for a literal");
+        self.fmt_named_node(context, nice_dt)?;
+        context.indent_level = bak_indent;
+        Ok(())
+    }
+
     fn fmt_literal<W: Write>(
         &self,
         context: &mut Context<W>,
@@ -268,26 +358,36 @@ impl<'graph> TurtleFormatter<'graph> {
             write!(context.output, "{}", literal.0)?;
         } else {
             match literal.0.datatype() {
-                xsd::BOOLEAN
-                | xsd::FLOAT
-                | xsd::INTEGER
-                | xsd::STRING
-                | xsd::DECIMAL
-                | xsd::DOUBLE
-                | xsd::LONG
-                | xsd::INT
-                | xsd::SHORT
-                | xsd::BYTE => write!(context.output, "{}", literal.0.value())?,
-                _dt => {
-                    write!(context.output, "\"{}\"^^", literal.0.value())?;
-                    let bak_indent = context.indent_level;
-                    context.indent_level = 0;
-                    let nice_dt = literal.1.as_ref().expect(
-                        "The TRoot generating algorithm failed to supply a datatype for a literal",
-                    );
-                    self.fmt_named_node(context, nice_dt)?;
-                    context.indent_level = bak_indent;
+                xsd::BOOLEAN | xsd::INTEGER => write!(context.output, "{}", literal.0.value())?,
+                xsd::DOUBLE => {
+                    if RE_TURTLE_DOUBLE.is_match(literal.0.value()) {
+                        write!(context.output, "{}", literal.0.value())?;
+                    } else {
+                        if self.options.warn_unsupported_numbers {
+                            tracing::warn!(
+                                "As pointed out in <https://github.com/w3c/rdf-turtle/issues/98>,
+Not all valid xsd:double values can be written as Turtle `DOUBLE`s,
+so we write them as data-typed literals."
+                            );
+                        }
+                        self.fmt_literal_with_type(context, literal)?;
+                    }
                 }
+                xsd::DECIMAL => {
+                    if literal.0.value().ends_with('.') || !literal.0.value().contains('.') {
+                        if self.options.warn_unsupported_numbers {
+                            tracing::warn!(
+                                "As pointed out in <https://github.com/w3c/rdf-turtle/issues/98>,
+Not all valid xsd:decimal values can be written as Turtle `DECIMAL`s,
+so we write them as data-typed literals."
+                            );
+                        }
+                        self.fmt_literal_with_type(context, literal)?;
+                    } else {
+                        write!(context.output, "{}", literal.0.value())?;
+                    }
+                }
+                _dt => self.fmt_literal_with_type(context, literal)?,
             }
         }
         Ok(())
@@ -358,7 +458,11 @@ impl<'graph> TurtleFormatter<'graph> {
                 self.fmt_named_node(context, &predicates_cont.predicate)?;
                 write!(context.output, " ")?;
                 self.fmt_obj(context, predicates_cont.objects.first().unwrap())?;
-                write!(context.output, " .")?;
+                if final_dot {
+                    write!(context.output, " .")?;
+                } else {
+                    write!(context.output, " ")?;
+                }
                 context.indent_level = bak_indent;
                 // writeln!(context.output, " ;")?;
                 // context.indent_level += 1;

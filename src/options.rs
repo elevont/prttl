@@ -66,6 +66,12 @@ pub struct FormatOptions {
     /// This refers to <https://www.w3.org/TR/rdf-canon/>,
     /// and effectively just label the blank nodes in a uniform way.
     pub canonicalize: bool,
+    /// Warn if a double or decimal literal can not be formatted as native Turtle literal.
+    ///
+    /// Turtles DOUBLE supports less formats then `xsd:double`,
+    /// and DECIMAL supports less formats then `xsd:decimal`.
+    /// See <https://github.com/w3c/rdf-turtle/issues/98> for more details.
+    pub warn_unsupported_numbers: bool,
 }
 
 impl Default for FormatOptions {
@@ -81,6 +87,7 @@ impl Default for FormatOptions {
             sparql_syntax: false,
             max_nesting: true,
             canonicalize: true,
+            warn_unsupported_numbers: true,
         }
     }
 }

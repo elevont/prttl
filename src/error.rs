@@ -15,13 +15,8 @@ pub enum FilesListErrorType {
 
 #[derive(Error, Debug)]
 pub enum Error {
-    // #[error("Failed to initialize the CLI tool: {0}")]
-    // Init(#[from] InitError),
     #[error("Input is not equivalent to the (re-)formatted version of its self: {0}")]
     Check(String),
-
-    #[error("We do not support redefinition of prefixes, which is the case with {0}")]
-    PrefixRedefinition(String),
 
     #[error("We do not support more then one base IRI defined per file")]
     MultipleBases,
@@ -43,10 +38,10 @@ pub enum Error {
     ParseError(#[from] parser::Error),
 
     #[error("Error while writing {0}")]
-    FailedToWriteFormattedFile(PathBuf),
+    FailedToWriteFormattedFile(#[source] std::io::Error, PathBuf),
 
     #[error("Failed to list files in input directory {0}: {1:?}")]
-    FailedToListFilesInInputDir(PathBuf, FilesListErrorType),
+    FailedToListFilesInInputDir(#[source] std::io::Error, PathBuf, FilesListErrorType),
 
     #[error("Failed to create Turtle file tree structure: {0}")]
     FailedToCreateTurtleStructure(String),

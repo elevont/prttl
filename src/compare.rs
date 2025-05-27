@@ -13,7 +13,11 @@ use oxrdf::{vocab::rdf, BlankNode, BlankNodeRef, SubjectRef, TermRef};
 use std::cmp::Ordering;
 
 #[must_use]
-pub fn named_nodes<'graph>(a: &TNamedNode<'graph>, b: &TNamedNode<'graph>) -> Ordering {
+pub fn named_nodes<'graph>(
+    _context: &SortingContext<'graph>,
+    a: &TNamedNode<'graph>,
+    b: &TNamedNode<'graph>,
+) -> Ordering {
     if a == b {
         Ordering::Equal
     } else if *a.as_named_node_ref() == rdf::TYPE {
@@ -77,7 +81,7 @@ pub fn blank_node_refs_with_prtyr<'graph>(
 
 #[must_use]
 pub fn blank_node_refs_by_label<'graph>(
-    context: &SortingContext<'graph>,
+    _context: &SortingContext<'graph>,
     a: &BlankNodeRef<'graph>,
     b: &BlankNodeRef<'graph>,
 ) -> Ordering {
@@ -159,7 +163,7 @@ pub fn t_subj<'graph>(
         return Ordering::Equal;
     }
     match (a, b) {
-        (TSubject::NamedNode(a), TSubject::NamedNode(b)) => named_nodes(a, b),
+        (TSubject::NamedNode(a), TSubject::NamedNode(b)) => named_nodes(context, a, b),
         (
             TSubject::BlankNodeLabel(TBlankNodeRef(a)),
             TSubject::BlankNodeLabel(TBlankNodeRef(b)),
@@ -192,7 +196,7 @@ pub fn pred_ref<'graph>(
     a: &TNamedNode<'graph>,
     b: &TNamedNode<'graph>,
 ) -> Ordering {
-    named_nodes(a, b)
+    named_nodes(context, a, b)
 }
 
 #[must_use]
@@ -214,7 +218,7 @@ pub fn t_obj<'graph>(
         return Ordering::Equal;
     }
     match (a, b) {
-        (TObject::NamedNode(a), TObject::NamedNode(b)) => named_nodes(a, b),
+        (TObject::NamedNode(a), TObject::NamedNode(b)) => named_nodes(context, a, b),
         (TObject::BlankNodeLabel(TBlankNodeRef(a)), TObject::BlankNodeLabel(TBlankNodeRef(b))) => {
             blank_node_refs(context, a, b)
         }
@@ -222,7 +226,7 @@ pub fn t_obj<'graph>(
             t_blank_nodes(context, a, b)
         }
         (TObject::Collection(a), TObject::Collection(b)) => t_collections(context, a, b),
-        (TObject::Literal(a), TObject::Literal(b)) => literals(a, b),
+        (TObject::Literal(a), TObject::Literal(b)) => literals(context, a, b),
         (TObject::Triple(a), TObject::Triple(b)) => triples(context, a, b),
         (a, b) => {
             let a_type_num: u8 = a.into();
@@ -233,13 +237,17 @@ pub fn t_obj<'graph>(
 }
 
 #[must_use]
-pub fn literals<'graph>(a: &TLiteralRef<'graph>, b: &TLiteralRef<'graph>) -> Ordering {
+pub fn literals<'graph>(
+    context: &SortingContext<'graph>,
+    a: &TLiteralRef<'graph>,
+    b: &TLiteralRef<'graph>,
+) -> Ordering {
     let cmp_value = a.0.value().cmp(b.0.value());
     if cmp_value != Ordering::Equal {
         return cmp_value;
     }
     let nice_dt_cmp = match (a.1.as_ref(), b.1.as_ref()) {
-        (Some(a), Some(b)) => named_nodes(a, b),
+        (Some(a), Some(b)) => named_nodes(context, a, b),
         (Some(_a), None) => Ordering::Less,
         (None, Some(_b)) => Ordering::Greater,
         (None, None) => Ordering::Equal,

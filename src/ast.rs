@@ -12,7 +12,6 @@ use std::rc::Rc;
 use std::sync::LazyLock;
 
 use oxrdf::vocab::rdf;
-use oxrdf::vocab::xsd;
 use oxrdf::BlankNodeRef;
 use oxrdf::Graph;
 use oxrdf::LiteralRef;
@@ -46,7 +45,7 @@ pub trait Part {
     fn is_single_leafed(&self) -> bool;
 }
 
-#[derive(Debug, PartialEq, Eq, Hash)]
+#[derive(Debug, PartialEq, Eq, Hash, Clone)]
 pub enum TSubject<'graph> {
     NamedNode(TNamedNode<'graph>),
     // PrefixedNamedNode(NamedNodeRef<'graph>, &'graph str, &'graph str),
@@ -57,18 +56,47 @@ pub enum TSubject<'graph> {
     Triple(Box<TTriple<'graph>>),
 }
 
-impl<'graph> TSubject<'graph> {
-    fn from(input: &'graph Input, other: SubjectRef<'graph>) -> Self {
+impl<'us, 'graph> TSubject<'graph> {
+    fn from(
+        input: &'graph Input,
+        g_main: &'graph Graph,
+        non_empty_valid_cols: &'us HashMap<BlankNodeRef<'graph>, Vec<TermRef<'graph>>>,
+        nestable_blank_nodes: &HashSet<BlankNodeRef<'graph>>,
+        col_involved_triples: &Vec<TripleRef<'graph>>,
+        other: SubjectRef<'graph>,
+    ) -> Self {
         match other {
             SubjectRef::NamedNode(named_node_ref) => {
                 Self::NamedNode(TNamedNode::from(input, named_node_ref))
             }
             SubjectRef::BlankNode(blank_node_ref) => {
-                Self::BlankNodeLabel(TBlankNodeRef(blank_node_ref))
+                // Self::BlankNodeLabel(TBlankNodeRef(blank_node_ref))
+                match blank_node_label_or_collection(
+                    input,
+                    g_main,
+                    non_empty_valid_cols,
+                    nestable_blank_nodes,
+                    col_involved_triples,
+                    blank_node_ref,
+                )
+                .expect("Infallible")
+                {
+                    Some(TBlankNodeOrCollection::BlankNode(_bn)) => {
+                        // TObject::BlankNodeAnonymous(bn);
+                        panic!("We should never be able to have an anonymous blank node as triple object");
+                    }
+                    Some(TBlankNodeOrCollection::Collection(col)) => Self::Collection(col),
+                    None => Self::BlankNodeLabel(TBlankNodeRef(blank_node_ref)),
+                }
             }
-            SubjectRef::Triple(triple) => {
-                Self::Triple(Box::new(TTriple::from(input, &triple.as_ref())))
-            }
+            SubjectRef::Triple(triple) => Self::Triple(Box::new(TTriple::from(
+                input,
+                g_main,
+                non_empty_valid_cols,
+                nestable_blank_nodes,
+                col_involved_triples,
+                &triple.as_ref(),
+            ))),
         }
     }
 }
@@ -118,10 +146,24 @@ pub struct TSubjectCont<'graph> {
     pub predicates: Vec<TPredicateCont<'graph>>,
 }
 
-impl<'graph> TSubjectCont<'graph> {
-    fn from(input: &'graph Input, other: SubjectRef<'graph>) -> Self {
+impl<'us, 'graph> TSubjectCont<'graph> {
+    fn from(
+        input: &'graph Input,
+        g_main: &'graph Graph,
+        non_empty_valid_cols: &'us HashMap<BlankNodeRef<'graph>, Vec<TermRef<'graph>>>,
+        nestable_blank_nodes: &HashSet<BlankNodeRef<'graph>>,
+        col_involved_triples: &Vec<TripleRef<'graph>>,
+        other: SubjectRef<'graph>,
+    ) -> Self {
         Self {
-            subject: TSubject::from(input, other),
+            subject: TSubject::from(
+                input,
+                g_main,
+                non_empty_valid_cols,
+                nestable_blank_nodes,
+                col_involved_triples,
+                other,
+            ),
             predicates: Vec::new(),
         }
     }
@@ -150,7 +192,7 @@ impl<'graph> PredicatesStore<'graph> for TSubjectCont<'graph> {
     }
 }
 
-#[derive(Debug, PartialEq, Eq, Hash)]
+#[derive(Debug, PartialEq, Eq, Hash, Clone, Copy)]
 pub enum TNamedNode<'graph> {
     Plain(NamedNodeRef<'graph>),
     Prefixed(NamedNodeRef<'graph>, &'graph str, &'graph str),
@@ -174,8 +216,7 @@ impl<'graph> TNamedNode<'graph> {
     #[must_use]
     pub const fn as_named_node_ref(&'graph self) -> &'graph NamedNodeRef<'graph> {
         match self {
-            TNamedNode::Plain(nn) => nn,
-            TNamedNode::Prefixed(nn, _, _) => nn,
+            Self::Plain(nn) | Self::Prefixed(nn, _, _) => nn,
         }
     }
 }
@@ -222,7 +263,7 @@ impl PartialOrd for TNamedNode<'_> {
 
 pub type TPredicate<'graph> = TNamedNode<'graph>;
 
-#[derive(Debug, PartialEq, Eq, Hash)]
+#[derive(Debug, PartialEq, Eq, Hash, Clone)]
 pub struct TPredicateCont<'graph> {
     pub predicate: TPredicate<'graph>,
     pub objects: Vec<TObject<'graph>>,
@@ -251,7 +292,7 @@ impl Part for TPredicateCont<'_> {
     }
 }
 
-#[derive(Debug, PartialEq, Eq, Hash)]
+#[derive(Debug, PartialEq, Eq, Hash, Clone, Copy)]
 pub struct TBlankNodeRef<'graph>(pub BlankNodeRef<'graph>);
 
 impl<'graph> From<BlankNodeRef<'graph>> for TBlankNodeRef<'graph> {
@@ -286,7 +327,7 @@ impl Part for TBlankNodeRef<'_> {
     }
 }
 
-#[derive(Debug, PartialEq, Eq, Hash)]
+#[derive(Debug, PartialEq, Eq, Hash, Clone, Copy)]
 pub struct TLiteralRef<'graph>(pub LiteralRef<'graph>, pub Option<TNamedNode<'graph>>);
 
 impl Ord for TLiteralRef<'_> {
@@ -330,7 +371,7 @@ impl Part for TLiteralRef<'_> {
     }
 }
 
-#[derive(Debug, PartialEq, Eq, Hash)]
+#[derive(Debug, PartialEq, Eq, Hash, Clone)]
 pub enum TObject<'graph> {
     NamedNode(TNamedNode<'graph>),
     BlankNodeLabel(TBlankNodeRef<'graph>),
@@ -340,8 +381,15 @@ pub enum TObject<'graph> {
     Triple(Box<TTriple<'graph>>),
 }
 
-impl<'graph> TObject<'graph> {
-    fn from(input: &'graph Input, other: TermRef<'graph>) -> Self {
+impl<'us, 'graph> TObject<'graph> {
+    fn from(
+        input: &'graph Input,
+        g_main: &'graph Graph,
+        non_empty_valid_cols: &'us HashMap<BlankNodeRef<'graph>, Vec<TermRef<'graph>>>,
+        nestable_blank_nodes: &HashSet<BlankNodeRef<'graph>>,
+        col_involved_triples: &Vec<TripleRef<'graph>>,
+        other: TermRef<'graph>,
+    ) -> Self {
         match other {
             TermRef::NamedNode(named_node_ref) => {
                 if named_node_ref == rdf::NIL {
@@ -351,21 +399,39 @@ impl<'graph> TObject<'graph> {
                 }
             }
             TermRef::BlankNode(blank_node_ref) => {
-                Self::BlankNodeLabel(TBlankNodeRef(blank_node_ref))
+                match blank_node_label_or_collection(
+                    input,
+                    g_main,
+                    non_empty_valid_cols,
+                    nestable_blank_nodes,
+                    col_involved_triples,
+                    blank_node_ref,
+                )
+                .expect("Infallible")
+                {
+                    Some(TBlankNodeOrCollection::BlankNode(bn)) => {
+                        TObject::BlankNodeAnonymous(bn)
+                    }
+                    Some(TBlankNodeOrCollection::Collection(col)) => Self::Collection(col.clone()),
+                    None => Self::BlankNodeLabel(TBlankNodeRef(blank_node_ref)),
+                }
             }
             TermRef::Literal(literal_ref) => {
-                let data_type_nn = if literal_ref.datatype() == xsd::STRING
-                    || literal_ref.datatype() == rdf::LANG_STRING
-                {
+                let data_type_nn = if literal_ref.is_plain() {
                     None
                 } else {
                     Some(TNamedNode::from(input, literal_ref.datatype()))
                 };
                 Self::Literal(TLiteralRef(literal_ref, data_type_nn))
             }
-            TermRef::Triple(triple) => {
-                Self::Triple(Box::new(TTriple::from(input, &triple.as_ref())))
-            }
+            TermRef::Triple(triple) => Self::Triple(Box::new(TTriple::from(
+                input,
+                g_main,
+                non_empty_valid_cols,
+                nestable_blank_nodes,
+                col_involved_triples,
+                &triple.as_ref(),
+            ))),
         }
     }
 }
@@ -416,13 +482,13 @@ impl From<&TObject<'_>> for u8 {
     }
 }
 
-#[derive(Debug, PartialEq, Eq, Hash)]
+#[derive(Debug, PartialEq, Eq, Hash, Clone)]
 pub struct TCollectionRef<'graph> {
     pub node: TBlankNode<'graph>,
     pub rest: Vec<TObject<'graph>>,
 }
 
-#[derive(Debug, PartialEq, Eq, Hash)]
+#[derive(Debug, PartialEq, Eq, Hash, Clone)]
 pub enum TCollection<'graph> {
     WithContent(TCollectionRef<'graph>),
     Empty,
@@ -447,19 +513,40 @@ impl Part for TCollection<'_> {
     }
 }
 
-#[derive(Debug, PartialEq, Eq, Hash)]
+#[derive(Debug, PartialEq, Eq, Hash, Clone)]
 pub struct TTriple<'graph>(
     pub TSubject<'graph>,
     pub TPredicate<'graph>,
     pub TObject<'graph>,
 );
 
-impl<'graph> TTriple<'graph> {
-    fn from(input: &'graph Input, other: &TripleRef<'graph>) -> Self {
+impl<'us, 'graph> TTriple<'graph> {
+    fn from(
+        input: &'graph Input,
+        g_main: &'graph Graph,
+        non_empty_valid_cols: &'us HashMap<BlankNodeRef<'graph>, Vec<TermRef<'graph>>>,
+        nestable_blank_nodes: &HashSet<BlankNodeRef<'graph>>,
+        col_involved_triples: &Vec<TripleRef<'graph>>,
+        other: &TripleRef<'graph>,
+    ) -> Self {
         Self(
-            TSubject::from(input, other.subject),
+            TSubject::from(
+                input,
+                g_main,
+                non_empty_valid_cols,
+                nestable_blank_nodes,
+                col_involved_triples,
+                other.subject,
+            ),
             TPredicate::from(input, other.predicate),
-            TObject::from(input, other.object),
+            TObject::from(
+                input,
+                g_main,
+                non_empty_valid_cols,
+                nestable_blank_nodes,
+                col_involved_triples,
+                other.object,
+            ),
         )
     }
 }
@@ -478,6 +565,63 @@ impl Part for TTriple<'_> {
     }
 }
 
+enum TBlankNodeOrCollection<'graph> {
+    BlankNode(TBlankNode<'graph>),
+    Collection(TCollection<'graph>),
+}
+
+fn blank_node_label_or_collection<'graph>(
+    input: &'graph Input,
+    g_main: &'graph Graph,
+    non_empty_valid_cols: &HashMap<BlankNodeRef<'graph>, Vec<TermRef<'graph>>>,
+    nestable_blank_nodes: &HashSet<BlankNodeRef<'graph>>,
+    col_involved_triples: &Vec<TripleRef<'graph>>,
+    bn: BlankNodeRef<'graph>,
+) -> Result<Option<TBlankNodeOrCollection<'graph>>, Infallible> {
+    Ok(if let Some(col) = non_empty_valid_cols.get(&bn) {
+        let mut tbn = TBlankNode::from(bn);
+        tbn.create_graph_entry(
+            input,
+            g_main,
+            non_empty_valid_cols,
+            nestable_blank_nodes,
+            col_involved_triples,
+            g_main.triples_for_subject(bn),
+        )?;
+        Some(TBlankNodeOrCollection::Collection(
+            TCollection::WithContent(TCollectionRef {
+                node: tbn,
+                rest: col
+                    .iter()
+                    .map(|term| {
+                        TObject::from(
+                            input,
+                            g_main,
+                            non_empty_valid_cols,
+                            nestable_blank_nodes,
+                            col_involved_triples,
+                            *term,
+                        )
+                    })
+                    .collect(),
+            }),
+        ))
+    } else if nestable_blank_nodes.contains(&bn) {
+        let mut tbn = TBlankNode::from(bn);
+        tbn.create_graph_entry(
+            input,
+            g_main,
+            non_empty_valid_cols,
+            nestable_blank_nodes,
+            col_involved_triples,
+            g_main.triples_for_subject(bn),
+        )?;
+        Some(TBlankNodeOrCollection::BlankNode(tbn))
+    } else {
+        None
+    })
+}
+
 trait PredicatesStore<'graph> {
     fn get_predicates_mut<'us>(&'us mut self) -> &'us mut Vec<TPredicateCont<'graph>>
     where
@@ -487,7 +631,7 @@ trait PredicatesStore<'graph> {
         &'us mut self,
         input: &'graph Input,
         g_main: &'graph Graph,
-        non_empty_valid_cols: &HashMap<BlankNodeRef<'graph>, Vec<TermRef<'graph>>>,
+        non_empty_valid_cols: &'us HashMap<BlankNodeRef<'graph>, Vec<TermRef<'graph>>>,
         nestable_blank_nodes: &HashSet<BlankNodeRef<'graph>>,
         col_involved_triples: &Vec<TripleRef<'graph>>,
         level_triples: impl Iterator<Item = TripleRef<'graph>>,
@@ -517,33 +661,30 @@ trait PredicatesStore<'graph> {
         for (predicate, objects) in predicate_objects {
             let mut predicate = TPredicateCont::from(input, predicate);
             for object in objects {
-                let mut t_object = TObject::from(input, object);
+                let mut t_object = TObject::from(
+                    input,
+                    g_main,
+                    non_empty_valid_cols,
+                    nestable_blank_nodes,
+                    col_involved_triples,
+                    object,
+                );
                 if let TermRef::BlankNode(bn) = object {
-                    if let Some(col) = non_empty_valid_cols.get(&bn) {
-                        let mut tbn = TBlankNode::from(bn);
-                        tbn.create_graph_entry(
-                            input,
-                            g_main,
-                            non_empty_valid_cols,
-                            nestable_blank_nodes,
-                            col_involved_triples,
-                            g_main.triples_for_subject(bn),
-                        )?;
-                        t_object = TObject::Collection(TCollection::WithContent(TCollectionRef {
-                            node: tbn,
-                            rest: col.iter().map(|term| TObject::from(input, *term)).collect(),
-                        }));
-                    } else if nestable_blank_nodes.contains(&bn) {
-                        let mut tbn = TBlankNode::from(bn);
-                        tbn.create_graph_entry(
-                            input,
-                            g_main,
-                            non_empty_valid_cols,
-                            nestable_blank_nodes,
-                            col_involved_triples,
-                            g_main.triples_for_subject(bn),
-                        )?;
-                        t_object = TObject::BlankNodeAnonymous(tbn);
+                    match blank_node_label_or_collection(
+                        input,
+                        g_main,
+                        non_empty_valid_cols,
+                        nestable_blank_nodes,
+                        col_involved_triples,
+                        bn,
+                    )? {
+                        Some(TBlankNodeOrCollection::BlankNode(bn)) => {
+                            t_object = TObject::BlankNodeAnonymous(bn);
+                        }
+                        Some(TBlankNodeOrCollection::Collection(col)) => {
+                            t_object = TObject::Collection(col.clone());
+                        }
+                        None => (),
                     }
                 }
                 predicate.objects.push(t_object);
@@ -555,7 +696,7 @@ trait PredicatesStore<'graph> {
     }
 }
 
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug, PartialEq, Eq, Clone)]
 pub struct TBlankNode<'graph> {
     pub node: TBlankNodeRef<'graph>,
     pub predicates: Vec<TPredicateCont<'graph>>,
@@ -626,7 +767,11 @@ impl<'graph> TRoot<'graph> {
         collection: &mut TCollectionRef<'graph>,
         context: &SortingContext<'graph>,
     ) {
-        Self::sort_objects(&mut collection.rest, context);
+        // NOTE NO! We can *not* sort collection items themselves, but we have to sort their terms internally (if multiple)!
+        // Self::sort_objects(&mut collection.rest, context);
+        for term in &mut collection.rest {
+            Self::sort_object(term, context);
+        }
     }
 
     fn sort_blank_node(blank_node: &mut TBlankNode<'graph>, context: &SortingContext<'graph>) {
@@ -785,11 +930,11 @@ fn extract_collection<'graph>(
                 return None;
             }
             TermRef::Literal(lit_rest) => {
-                eprintln!("Literal as collection chain element is invalid: {lit_rest}");
+                tracing::error!("Literal as collection chain element is invalid: {lit_rest}");
                 return None;
             }
             TermRef::Triple(triple) => {
-                eprintln!("Triple as collection chain element is invalid: {triple}");
+                tracing::error!("Triple as collection chain element is invalid: {triple}");
                 return None;
             }
         }
@@ -873,22 +1018,56 @@ pub fn construct_tree<'tree, 'graph>(
 where
     'graph: 'tree,
 {
-    let col_involved_triples = Rc::new(RefCell::new(Vec::new()));
+    let col_involved_triples: Rc<RefCell<Vec<TripleRef<'_>>>> = Rc::new(RefCell::new(Vec::new()));
     let non_empty_valid_cols = extract_non_empty_collections(&input.graph, &col_involved_triples);
+    tracing::debug!(
+        "\ncol_involved_triples:\n{}",
+        col_involved_triples
+            .borrow()
+            .iter()
+            .map(|triple| format!(
+                "{} {} {} .",
+                triple.subject, triple.predicate, triple.object
+            )
+            .replace('\n', "\\n"))
+            .collect::<Vec<_>>()
+            .join("\n")
+    );
+    tracing::debug!(
+        "\nnon_empty_valid_cols:\n{}",
+        non_empty_valid_cols
+            .iter()
+            .map(|(bn, terms)| format!(
+                "{} ( {} )",
+                bn,
+                terms
+                    .iter()
+                    .map(|t| format!("{t}").replace('\n', "\\n"))
+                    .collect::<Vec<_>>()
+                    .join(", ")
+            )
+            .replace('\n', "\\n"))
+            .collect::<Vec<_>>()
+            .join("\n")
+    );
     let nestable_blank_nodes =
         evaluate_nestable_and_unreferenced_blank_nodes(&input.graph, unreferenced_blank_nodes);
 
     for subj in subjects(&input.graph) {
-        // let mut anonymize_bn = false;
         if let SubjectRef::BlankNode(bn) = subj {
             if nestable_blank_nodes.contains(&bn) {
                 continue;
-                // } else if unreferenced_blank_nodes.contains(&bn) {
-                //     anonymize_bn = true;
             }
         }
         let level_triples = input.graph.triples_for_subject(subj);
-        let mut parent = TSubjectCont::from(input, subj);
+        let mut parent = TSubjectCont::from(
+            input,
+            &input.graph,
+            &non_empty_valid_cols,
+            &nestable_blank_nodes,
+            &col_involved_triples.borrow(),
+            subj,
+        );
         parent.create_graph_entry(
             input,
             &input.graph,
