@@ -35,6 +35,13 @@ More info can be found at ..."
     )] // TODO Add link to README?
     MultipleBases,
 
+    #[error(
+        "We do not support a prefix ({0}) and a base to cover the same namespace. \
+Please consider refactoring the input first. \
+More info can be found at ..."
+    )] // TODO Add link to README?
+    PrefixAndBaseShareNamespace(String),
+
     #[error(transparent)]
     TurtleSyntaxError(#[from] oxttl::TurtleSyntaxError),
 
@@ -66,6 +73,10 @@ pub fn parse(turtle_str: &[u8], options: &Rc<FormatOptions>) -> Result<Input, Er
     let mut graph = Graph::new();
 
     let mut parser = TurtleParser::new().with_quoted_triples().low_level();
+    parser.extend_from_slice(b"@base <http://a.a> .\n");
+    if let Some(parse_res) = parser.parse_next() {
+        parse_res?;
+    }
     parser.extend_from_slice(turtle_str.as_ref());
     parser.end();
     let mut base = None;
@@ -105,6 +116,12 @@ pub fn parse(turtle_str: &[u8], options: &Rc<FormatOptions>) -> Result<Input, Er
     if prefixes_sorted.len() > prefixes_inverted.len() {
         let duplicate_prefixes = find_duplicate_values(&prefixes_sorted);
         return Err(Error::MultiplePrefixesForNamespace(duplicate_prefixes));
+    }
+
+    if let Some(base_val) = &base {
+        if let Some(prefix) = prefixes_inverted.get(base_val) {
+            return Err(Error::PrefixAndBaseShareNamespace(prefix.to_owned()));
+        }
     }
 
     let input = Input {
