@@ -69,11 +69,21 @@ fn find_duplicate_values(map: &BTreeMap<String, String>) -> HashMap<String, Vec<
         .collect::<HashMap<_, _>>()
 }
 
+/// Parses a given (supposedly) Turtle file content into an [`Input`],
+/// which can then be fed into [`formatter::format`].
+///
+/// # Errors
+///
+/// - [`Error::TurtleSyntaxError`]
+/// - [`Error::PrefixRedefinition`]
+/// - [`Error::MultipleBases`]
+/// - [`Error::MultiplePrefixesForNamespace`]
+/// - [`Error::PrefixAndBaseShareNamespace`]
 pub fn parse(turtle_str: &[u8], options: &Rc<FormatOptions>) -> Result<Input, Error> {
     let mut graph = Graph::new();
 
     let mut parser = TurtleParser::new().with_quoted_triples().low_level();
-    parser.extend_from_slice(b"@base <http://a.a> .\n");
+    parser.extend_from_slice(b"@base <http://a.a> .\n"); // TODO HACK!
     if let Some(parse_res) = parser.parse_next() {
         parse_res?;
     }

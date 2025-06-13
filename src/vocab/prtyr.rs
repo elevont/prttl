@@ -2,7 +2,7 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
-//! Provides ready to use [`NamedNodeRef`](super::NamedNodeRef)s
+//! Provides ready to use [`NamedNodeRef`]s
 //! for the [prtyr](http://w3id.org/oseg/ont/prtyr) OWL/RDF ontology/vocabulary.
 
 use const_format::formatcp;

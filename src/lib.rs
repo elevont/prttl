@@ -30,6 +30,11 @@ pub struct ReadmeDoctests;
 
 pub const VERSION: &str = git_version!(cargo_prefix = "", fallback = "unknown");
 
+/// Runs the formatter on the given files.
+///
+/// # Errors
+///
+/// Any error from [`Error`].
 pub fn run(options: &Rc<FormatOptions>, input_files: &Vec<PathBuf>) -> Result<(), Error> {
     for file in input_files {
         let original =
@@ -54,6 +59,15 @@ pub fn run(options: &Rc<FormatOptions>, input_files: &Vec<PathBuf>) -> Result<()
     Ok(())
 }
 
+/// Recursively adds files from a directory,
+/// which have the given suffix,
+/// to a list of files given as parameter.
+///
+/// # Errors
+///
+/// - if the directory does not exist
+/// - if the directory is not a directory
+/// - if the directory is not readable (an issue with file-system permissions)
 pub fn add_files_with_suffix(
     dir: &Path,
     extension: &OsStr,

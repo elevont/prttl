@@ -34,8 +34,6 @@ pub struct FormatOptions {
     pub force: bool,
     /// Sort blank nodes according to their `prtyr:sortingId` value.
     ///
-    /// NOTE: For this to have an effect, [`Self::sort_terms`] needs to be enabled too.
-    ///
     /// [`prtyr`](https://codeberg.org/elevont/prtyr)
     /// is an ontology concerned with
     /// [RDF Pretty Printing](https://www.w3.org/DesignIssues/Pretty.html).

@@ -26,6 +26,13 @@ use crate::input::Input;
 static RE_TURTLE_DOUBLE: LazyLock<Regex> =
     LazyLock::new(|| Regex::new("[+-]?(([0-9]+([.][0-9]*)?)|([.][0-9]+))[eE][+-]?[0-9]+").unwrap());
 
+/// Does the actual formatting/pretty-printing.
+///
+/// # Errors
+///
+/// Fails only if an I/O error occurs while writing to an in-memory buffer.
+/// This is basically only possible when the buffer is full,
+/// and no more memory can be allocated.
 pub fn format(input: &Input, options: Rc<FormatOptions>) -> FmtResult<String> {
     let mut output = String::new();
     let mut context = Context {

@@ -954,9 +954,9 @@ fn extract_collection<'graph>(
     Some(col)
 }
 
-fn evaluate_nestable_and_unreferenced_blank_nodes<'graph, 'tree>(
+fn evaluate_nestable_and_unreferenced_blank_nodes<'graph, 'tree, S: ::std::hash::BuildHasher>(
     g_main: &'graph Graph,
-    unreferenced_blank_nodes: &'tree mut HashSet<BlankNodeRef<'graph>>,
+    unreferenced_blank_nodes: &'tree mut HashSet<BlankNodeRef<'graph>, S>,
 ) -> HashSet<BlankNodeRef<'graph>>
 where
     'graph: 'tree,
@@ -1022,9 +1022,14 @@ pub fn subjects(graph: &Graph) -> impl Iterator<Item = SubjectRef<'_>> + '_ {
     })
 }
 
-pub fn construct_tree<'tree, 'graph>(
+/// Creates the AST for the given input.
+///
+/// # Errors
+///
+/// Never fails (Infallible).
+pub fn construct_tree<'tree, 'graph, S: ::std::hash::BuildHasher>(
     tree_root: &'tree mut TRoot<'graph>,
-    unreferenced_blank_nodes: &'tree mut HashSet<BlankNodeRef<'graph>>,
+    unreferenced_blank_nodes: &'tree mut HashSet<BlankNodeRef<'graph>, S>,
     input: &'graph Input,
 ) -> Result<(), Infallible>
 where
