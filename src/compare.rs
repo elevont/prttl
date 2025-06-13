@@ -48,31 +48,56 @@ pub fn blank_node_refs<'graph>(
 }
 
 #[must_use]
+fn fetch_prtyr_sorting_id<'graph>(
+    context: &SortingContext<'graph>,
+    bn: &BlankNodeRef<'graph>,
+) -> Option<u32> {
+
+
+    context.bn_sorting_ids.borrow().get(bn).map_or_else(
+        || {
+            let sorting_id_opt = context
+                .graph
+                .object_for_subject_predicate(SubjectRef::BlankNode(*bn), *prtyr::SORTING_ID)
+                .and_then(|sorting_id_term| {
+                    if let TermRef::Literal(sorting_id_literal) = sorting_id_term {
+                        sorting_id_literal
+                            .value()
+                            .parse()
+                            .map_err(|err| {
+                                tracing::warn!(
+                                    "Failed to parse prtyr:sortingId value ('{}') as u32: {err}",
+                                    sorting_id_literal.value()
+                                );
+                                err
+                            })
+                            .ok()
+                    } else {
+                        None
+                    }
+                });
+
+            context
+                .bn_sorting_ids
+                .borrow_mut()
+                .insert(*bn, sorting_id_opt);
+            sorting_id_opt
+        },
+        |id_opt| *id_opt,
+    )
+}
+
+#[must_use]
 pub fn blank_node_refs_with_prtyr<'graph>(
     context: &SortingContext<'graph>,
     a: &BlankNodeRef<'graph>,
     b: &BlankNodeRef<'graph>,
 ) -> Ordering {
-    let graph = context.graph;
-
-    let a_sorting_id_opt =
-        graph.object_for_subject_predicate(SubjectRef::BlankNode(*a), *prtyr::SORTING_ID);
-    let b_sorting_id_opt =
-        graph.object_for_subject_predicate(SubjectRef::BlankNode(*b), *prtyr::SORTING_ID);
+    let a_sorting_id_opt = fetch_prtyr_sorting_id(context, a);
+    let b_sorting_id_opt = fetch_prtyr_sorting_id(context, b);
 
     match (a_sorting_id_opt, b_sorting_id_opt) {
-        (Some(TermRef::Literal(a_sorting_id)), Some(TermRef::Literal(b_sorting_id))) => {
-            let a_int: u32 = a_sorting_id
-                .value()
-                .parse()
-                .expect("Failed to parse prtyr:sortingId value as u32");
-            let b_int: u32 = b_sorting_id
-                .value()
-                .parse()
-                .expect("Failed to parse prtyr:sortingId value as u32");
-            a_int.cmp(&b_int)
-        }
-        (Some(_), Some(_)) => panic!("At least one prtyr:sortingId value is not a literal"),
+        (Some(a_sorting_id), Some(b_sorting_id)) => a_sorting_id.cmp(&b_sorting_id),
         (None, Some(_)) => Ordering::Greater,
         (Some(_), None) => Ordering::Less,
         (None, None) => blank_node_refs_by_label(context, a, b),

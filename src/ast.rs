@@ -244,12 +244,10 @@ impl Part for TNamedNode<'_> {
 impl Ord for TNamedNode<'_> {
     fn cmp(&self, other: &Self) -> Ordering {
         match (self, other) {
-            (TNamedNode::Plain(_), TNamedNode::Prefixed(_, _, _)) => Ordering::Less,
-            (TNamedNode::Plain(_), TNamedNode::Based(_, _)) => Ordering::Less,
-            (TNamedNode::Prefixed(_, _, _), TNamedNode::Plain(_)) => Ordering::Greater,
-            (TNamedNode::Prefixed(_, _, _), TNamedNode::Based(_, _)) => Ordering::Greater,
-            (TNamedNode::Based(_, _), TNamedNode::Plain(_)) => Ordering::Greater,
-            (TNamedNode::Based(_, _), TNamedNode::Prefixed(_, _, _)) => Ordering::Less,
+            (TNamedNode::Plain(_), TNamedNode::Prefixed(_, _, _) | TNamedNode::Based(_, _))
+            | (TNamedNode::Based(_, _), TNamedNode::Prefixed(_, _, _)) => Ordering::Less,
+            (TNamedNode::Prefixed(_, _, _), TNamedNode::Plain(_) | TNamedNode::Based(_, _))
+            | (TNamedNode::Based(_, _), TNamedNode::Plain(_)) => Ordering::Greater,
             (TNamedNode::Plain(a_nn), TNamedNode::Plain(b_nn)) => a_nn.as_str().cmp(b_nn.as_str()),
             (
                 TNamedNode::Prefixed(_a_nn, a_prefix, a_local_name),
@@ -756,6 +754,8 @@ pub struct SortingContext<'sorting> {
     pub options: Rc<FormatOptions>,
     // pub prefixes: &'sorting Vec<(String, String)>,
     pub graph: &'sorting Graph,
+    /// A cache for blank node sorting ids, for performance reasons.
+    pub bn_sorting_ids: Rc<RefCell<HashMap<BlankNodeRef<'sorting>, Option<u32>>>>,
 }
 
 #[derive(Debug)]

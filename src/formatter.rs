@@ -13,7 +13,8 @@ use crate::error::FmtResult;
 use crate::options::FormatOptions;
 use oxrdf::{vocab::rdf, vocab::xsd, BlankNodeRef, NamedNodeRef};
 use regex::Regex;
-use std::collections::HashSet;
+use std::cell::RefCell;
+use std::collections::{HashMap, HashSet};
 use std::fmt::Write;
 use std::rc::Rc;
 use std::sync::LazyLock;
@@ -67,6 +68,7 @@ impl<'graph> TurtleFormatter<'graph> {
         let context = SortingContext {
             options: Rc::<_>::clone(&self.options),
             graph: &self.input.graph,
+            bn_sorting_ids: Rc::new(RefCell::new(HashMap::new())),
         };
         self.tree.sort(&context);
     }
