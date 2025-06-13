@@ -219,6 +219,7 @@ fn arg_src() -> Arg {
         .value_name("FILE_OR_DIR")
         .value_hint(ValueHint::Other)
         .value_parser(value_parser!(PathBuf))
+        .required(true)
         .action(ArgAction::Set)
 }
 
