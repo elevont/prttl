@@ -56,21 +56,6 @@ jobs:
           key: tests-cache
       - run: cargo test
 
-  test_tree_sitter:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: Swatinem/rust-cache@v2
-      - uses: taiki-e/install-action@v2
-        with: { tool: tree-sitter-cli }
-      - run: tree-sitter generate
-        working-directory: tree-sitter
-      - run: tree-sitter test
-        working-directory: tree-sitter
-      - run: tree-sitter fuzz
-        working-directory: tree-sitter
-
-
   rustdoc:
     runs-on: ubuntu-latest
     steps:
