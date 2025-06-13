@@ -23,8 +23,8 @@ pub const A_S_INDENTATION: char = 'i';
 // pub const A_S_INPUT: char = 'I';
 pub const A_L_LABEL_ALL_BLANK_NODES: &str = "label-all-blank-nodes";
 pub const A_S_LABEL_ALL_BLANK_NODES: char = 'l';
-pub const A_L_NO_PRTYR_SORTING: &str = "no-prtyr-sorting";
-// pub const A_S_NO_PRTYR_SORTING: char = 'p';
+pub const A_L_NO_PRTR_SORTING: &str = "no-prtr-sorting";
+// pub const A_S_NO_PRTR_SORTING: char = 'p';
 pub const A_L_NO_SPARQL_SYNTAX: &str = "no-sparql-syntax";
 // pub const A_S_NO_SPARQL_SYNTAX: char = 's';
 pub const A_L_SINGLE_ENTRY_ON_NEW_LINE: &str = "single-entry-on-new-line";
@@ -87,7 +87,7 @@ fn arg_label_all_blank_nodes() -> Arg {
     Arg::new(A_L_LABEL_ALL_BLANK_NODES)
         .help(
             "Whether to disable sorting of blank nodes \
-using their `prtyr:sortingId` value, if any",
+using their `prtr:sortingId` value, if any",
         )
         .long_help(
             "Whether to use labels for all blank nodes, \
@@ -125,23 +125,23 @@ fn arg_indentation() -> Arg {
 //         .default_value("-")
 // }
 
-fn arg_no_prtyr_sorting() -> Arg {
-    Arg::new(A_L_NO_PRTYR_SORTING)
+fn arg_no_prtr_sorting() -> Arg {
+    Arg::new(A_L_NO_PRTR_SORTING)
         .help(
             "Whether to disable sorting of blank nodes \
-using their `prtyr:sortingId` value, if any",
+using their `prtr:sortingId` value, if any",
         )
         .long_help(
             "Whether to disable sorting of blank nodes \
-using their `prtyr:sortingId` value, if any. \
+using their `prtr:sortingId` value, if any. \
 \
-[`prtyr`](https://codeberg.org/elevont/prtyr) \
+[`prtr`](https://codeberg.org/elevont/prtr) \
 is an ontology concerned with \
 [RDF Pretty Printing](https://www.w3.org/DesignIssues/Pretty.html).",
         )
         .action(ArgAction::SetTrue)
-        // .short(A_S_NO_PRTYR_SORTING)
-        .long(A_L_NO_PRTYR_SORTING)
+        // .short(A_S_NO_PRTR_SORTING)
+        .long(A_L_NO_PRTR_SORTING)
 }
 
 fn arg_no_sparql_syntax() -> Arg {
@@ -250,7 +250,7 @@ More about this: \
         .arg(arg_indentation())
         // .arg(arg_input())
         // .arg(arg_output())
-        .arg(arg_no_prtyr_sorting())
+        .arg(arg_no_prtr_sorting())
         .arg(arg_no_sparql_syntax())
         .arg(arg_single_entry_on_new_line())
         .arg(arg_quiet())
@@ -368,7 +368,7 @@ pub fn init() -> Result<(FormatOptions, Vec<PathBuf>), InitError> {
         .unwrap_or(DEFAULT_INDENTATION)
         .into();
     let max_nesting = !args.get_flag(A_L_LABEL_ALL_BLANK_NODES);
-    let prtyr_sorting = !args.get_flag(A_L_NO_PRTYR_SORTING);
+    let prtr_sorting = !args.get_flag(A_L_NO_PRTR_SORTING);
     let sparql_syntax = !args.get_flag(A_L_NO_SPARQL_SYNTAX);
     let single_object_on_new_line = args.get_flag(A_L_SINGLE_ENTRY_ON_NEW_LINE);
     let warn_unsupported_numbers = true;
@@ -385,7 +385,7 @@ pub fn init() -> Result<(FormatOptions, Vec<PathBuf>), InitError> {
             indentation,
             single_object_on_new_line,
             force,
-            prtyr_sorting,
+            prtr_sorting,
             sparql_syntax,
             max_nesting,
             canonicalize,

@@ -3,14 +3,14 @@
 // SPDX-License-Identifier: Apache-2.0
 
 //! Provides ready to use [`NamedNodeRef`]s
-//! for the [prtyr](http://w3id.org/oseg/ont/prtyr) OWL/RDF ontology/vocabulary.
+//! for the [prtr](http://w3id.org/oseg/ont/prtr) OWL/RDF ontology/vocabulary.
 
 use const_format::formatcp;
 use oxrdf::NamedNodeRef;
 use std::sync::LazyLock;
 
-pub const NS: &str = "http://w3id.org/oseg/ont/prtyr#";
-pub const PREFIX: &str = "prtyr";
+pub const NS: &str = "http://w3id.org/oseg/ont/prtr#";
+pub const PREFIX: &str = "prtr";
 
 /// The datatype property to assign an integer to each blank node,
 /// to be used for sorting them when pretty-printing.

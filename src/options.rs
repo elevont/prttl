@@ -32,12 +32,12 @@ pub struct FormatOptions {
     /// Whether to force-write the output,
     /// even if potential issues with the formatting have been detected.
     pub force: bool,
-    /// Sort blank nodes according to their `prtyr:sortingId` value.
+    /// Sort blank nodes according to their `prtr:sortingId` value.
     ///
-    /// [`prtyr`](https://codeberg.org/elevont/prtyr)
+    /// [`prtr`](https://codeberg.org/elevont/prtr)
     /// is an ontology concerned with
     /// [RDF Pretty Printing](https://www.w3.org/DesignIssues/Pretty.html).
-    pub prtyr_sorting: bool,
+    pub prtr_sorting: bool,
     /// Whether to use SPARQL-ish syntax for base and prefix,
     /// or the traditional Turtle syntax.
     ///
@@ -81,7 +81,7 @@ impl Default for FormatOptions {
             // new_lines_for_easy_diff: false,
             single_object_on_new_line: false,
             force: false,
-            prtyr_sorting: true,
+            prtr_sorting: true,
             sparql_syntax: false,
             max_nesting: true,
             canonicalize: true,

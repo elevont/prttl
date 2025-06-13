@@ -7,7 +7,7 @@ use crate::{
         SortingContext, TBlankNode, TBlankNodeRef, TCollection, TCollectionRef, TLiteralRef,
         TNamedNode, TObject, TPredicateCont, TSubject, TSubjectCont, TTriple,
     },
-    vocab::prtyr,
+    vocab::prtr,
 };
 use oxrdf::{vocab::rdf, BlankNode, BlankNodeRef, SubjectRef, TermRef};
 use std::cmp::Ordering;
@@ -40,15 +40,15 @@ pub fn blank_node_refs<'graph>(
     a: &BlankNodeRef<'graph>,
     b: &BlankNodeRef<'graph>,
 ) -> Ordering {
-    if context.options.prtyr_sorting {
-        blank_node_refs_with_prtyr(context, a, b)
+    if context.options.prtr_sorting {
+        blank_node_refs_with_prtr(context, a, b)
     } else {
         blank_node_refs_by_label(context, a, b)
     }
 }
 
 #[must_use]
-fn fetch_prtyr_sorting_id<'graph>(
+fn fetch_prtr_sorting_id<'graph>(
     context: &SortingContext<'graph>,
     bn: &BlankNodeRef<'graph>,
 ) -> Option<u32> {
@@ -58,7 +58,7 @@ fn fetch_prtyr_sorting_id<'graph>(
         || {
             let sorting_id_opt = context
                 .graph
-                .object_for_subject_predicate(SubjectRef::BlankNode(*bn), *prtyr::SORTING_ID)
+                .object_for_subject_predicate(SubjectRef::BlankNode(*bn), *prtr::SORTING_ID)
                 .and_then(|sorting_id_term| {
                     if let TermRef::Literal(sorting_id_literal) = sorting_id_term {
                         sorting_id_literal
@@ -66,7 +66,7 @@ fn fetch_prtyr_sorting_id<'graph>(
                             .parse()
                             .map_err(|err| {
                                 tracing::warn!(
-                                    "Failed to parse prtyr:sortingId value ('{}') as u32: {err}",
+                                    "Failed to parse prtr:sortingId value ('{}') as u32: {err}",
                                     sorting_id_literal.value()
                                 );
                                 err
@@ -88,13 +88,13 @@ fn fetch_prtyr_sorting_id<'graph>(
 }
 
 #[must_use]
-pub fn blank_node_refs_with_prtyr<'graph>(
+pub fn blank_node_refs_with_prtr<'graph>(
     context: &SortingContext<'graph>,
     a: &BlankNodeRef<'graph>,
     b: &BlankNodeRef<'graph>,
 ) -> Ordering {
-    let a_sorting_id_opt = fetch_prtyr_sorting_id(context, a);
-    let b_sorting_id_opt = fetch_prtyr_sorting_id(context, b);
+    let a_sorting_id_opt = fetch_prtr_sorting_id(context, a);
+    let b_sorting_id_opt = fetch_prtr_sorting_id(context, b);
 
     match (a_sorting_id_opt, b_sorting_id_opt) {
         (Some(a_sorting_id), Some(b_sorting_id)) => a_sorting_id.cmp(&b_sorting_id),
