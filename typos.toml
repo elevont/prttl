@@ -1,9 +1,0 @@
-# SPDX-FileCopyrightText: 2022 Helsing GmbH
-#
-# SPDX-License-Identifier: Apache-2.0
-
-[files]
-extend-exclude = ["**/*.svg"]
-
-[default.extend-words]
-pn = "pn" # Common abbreviation in Turtle grammar
