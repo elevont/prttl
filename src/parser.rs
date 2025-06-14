@@ -116,6 +116,7 @@ pub fn parse(turtle_str: &[u8], options: &Rc<FormatOptions>) -> Result<Input, Er
             }
         }
     }
+    tracing::debug!("Low level parsing went ok!");
     if options.canonicalize {
         graph.canonicalize(CanonicalizationAlgorithm::Unstable);
     }
