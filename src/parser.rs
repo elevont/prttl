@@ -29,6 +29,17 @@ Conflicting namespaces:
     MultiplePrefixesForNamespace(HashMap<String, Vec<String>>),
 
     #[error(
+        "We do not support handling of comments.
+Please consider refactoring.
+The reason for that and hints for how to do the refactoring
+can be found at <>.
+
+Alternatively, you may choose to `--force` the pretty-printing anyway,
+**Which will remove all the Turtle syntax comments in your file!**"
+    )] // TODO Add link to DesignDecisions.md?
+    Comment,
+
+    #[error(
         "We do not support more then one base IRI defined per file. \
 Please consider refactoring the input first. \
 More info can be found at ..."
@@ -82,7 +93,7 @@ fn find_duplicate_values(map: &BTreeMap<String, String>) -> HashMap<String, Vec<
 pub fn parse(turtle_str: &[u8], options: &Rc<FormatOptions>) -> Result<Input, Error> {
     let mut graph = Graph::new();
 
-    let mut parser = TurtleParser::new().with_quoted_triples().low_level();
+    let mut parser = TurtleParser::new().low_level();
     parser.extend_from_slice(b"@base <http://a.a> .\n"); // TODO HACK!
     if let Some(parse_res) = parser.parse_next() {
         parse_res?;
@@ -114,6 +125,18 @@ pub fn parse(turtle_str: &[u8], options: &Rc<FormatOptions>) -> Result<Input, Er
             } else {
                 prefixes.insert(cur_prefix.0.to_owned(), cur_prefix.1.to_owned());
             }
+        }
+    }
+    // handle case of Turtle syntax comments found in the source
+    if parser.seen_comment() {
+        if options.force {
+            tracing::info!(
+                "Even though comments were found in the input,
+we continue formatting (which removes all of them),
+because the 'force' option was specified!"
+            );
+        } else {
+            return Err(Error::Comment);
         }
     }
     tracing::debug!("Low level parsing went ok!");

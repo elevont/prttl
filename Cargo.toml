@@ -50,16 +50,16 @@ cli_utils = { version = "0.10", features = ["logging"], package = "cli_utils_hoi
 const_format = { version = "0.2", default-features = false }
 diffy = { version = "0.4", default-features = false }
 git-version = "0.3"
-oxrdf = { version = "0.2", default-features = false, features = ["rdf-star"] }
-oxttl = { version = "0.1", default-features = false, features = ["rdf-star"] }
 oxiri = { version = "0.2", default-features = false }
+oxrdf = { git = "https://github.com/elevont/oxigraph.git", default-features = false, features = ["rdf-12"] }
+oxttl = { git = "https://github.com/elevont/oxigraph.git", default-features = false, features = ["rdf-12"] }
 regex = { version = "1.11", default-features = false }
 thiserror = { version = "2.0", default-features = false }
 tracing = "0.1"
 tracing-subscriber = "0.3"
 
 [dev-dependencies]
-oxrdf = { version = "0.2", default-features = false, features = ["rdf-star"] }
-oxttl = { version = "0.1", default-features = false, features = ["rdf-star"] }
+oxrdf = { git = "https://github.com/elevont/oxigraph.git", default-features = false, features = ["rdf-12"] }
+oxttl = { git = "https://github.com/elevont/oxigraph.git", default-features = false, features = ["rdf-12"] }
 pretty_assertions = { version = "1.4", default-features = false, features = ["std"] }
 reqwest = { version = "0.12", default-features = false, features = ["blocking"] }

@@ -14,10 +14,7 @@ under Apache 2 license.
 
 It is currently distributed on:
 
-- [Crates.io](https://crates.io/crates/turtlefmt): `cargo install turtlefmt`
-- [Pypi](https://pypi.org/project/turtlefmt): `pipx install turtlefmt`
-
-Build from source requires NodeJS 6.0+ to be available in your `PATH`.
+- [Crates.io](https://crates.io/crates/prttl): `cargo install prttl`
 
 ## Usage
 

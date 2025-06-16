@@ -13,6 +13,11 @@ pub struct FormatOptions {
     pub single_leafed_new_lines: bool,
     /// Whether to force-write the output,
     /// even if potential issues with the formatting have been detected.
+    ///
+    /// One such issue would be,
+    /// if comments have been found in the input.
+    /// Because they will be completely removed in the output,
+    /// we require `force = true` to try to avoid unintentional loss of information.
     pub force: bool,
     /// Sort blank nodes according to their `prtr:sortingId` value.
     ///

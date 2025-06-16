@@ -16,7 +16,7 @@ use oxrdf::BlankNodeRef;
 use oxrdf::Graph;
 use oxrdf::LiteralRef;
 use oxrdf::NamedNodeRef;
-use oxrdf::SubjectRef;
+use oxrdf::NamedOrBlankNodeRef;
 use oxrdf::TermRef;
 use oxrdf::TripleRef;
 
@@ -63,13 +63,13 @@ impl<'us, 'graph> TSubject<'graph> {
         non_empty_valid_cols: &'us HashMap<BlankNodeRef<'graph>, Vec<TermRef<'graph>>>,
         nestable_blank_nodes: &HashSet<BlankNodeRef<'graph>>,
         col_involved_triples: &Vec<TripleRef<'graph>>,
-        other: SubjectRef<'graph>,
+        other: NamedOrBlankNodeRef<'graph>,
     ) -> Self {
         match other {
-            SubjectRef::NamedNode(named_node_ref) => {
+            NamedOrBlankNodeRef::NamedNode(named_node_ref) => {
                 Self::NamedNode(TNamedNode::from(input, named_node_ref))
             }
-            SubjectRef::BlankNode(blank_node_ref) => {
+            NamedOrBlankNodeRef::BlankNode(blank_node_ref) => {
                 // Self::BlankNodeLabel(TBlankNodeRef(blank_node_ref))
                 match blank_node_label_or_collection(
                     input,
@@ -89,14 +89,6 @@ impl<'us, 'graph> TSubject<'graph> {
                     None => Self::BlankNodeLabel(TBlankNodeRef(blank_node_ref)),
                 }
             }
-            SubjectRef::Triple(triple) => Self::Triple(Box::new(TTriple::from(
-                input,
-                g_main,
-                non_empty_valid_cols,
-                nestable_blank_nodes,
-                col_involved_triples,
-                &triple.as_ref(),
-            ))),
         }
     }
 }
@@ -153,7 +145,7 @@ impl<'us, 'graph> TSubjectCont<'graph> {
         non_empty_valid_cols: &'us HashMap<BlankNodeRef<'graph>, Vec<TermRef<'graph>>>,
         nestable_blank_nodes: &HashSet<BlankNodeRef<'graph>>,
         col_involved_triples: &Vec<TripleRef<'graph>>,
-        other: SubjectRef<'graph>,
+        other: NamedOrBlankNodeRef<'graph>,
     ) -> Self {
         Self {
             subject: TSubject::from(
@@ -655,13 +647,13 @@ trait PredicatesStore<'graph> {
                 continue;
             }
             match triple.subject {
-                SubjectRef::BlankNode(bn) => {
+                NamedOrBlankNodeRef::BlankNode(bn) => {
                     if non_empty_valid_cols.contains_key(&bn) || nestable_blank_nodes.contains(&bn)
                     {
                         // continue;
                     }
                 }
-                SubjectRef::NamedNode(_) | SubjectRef::Triple(_) => (),
+                NamedOrBlankNodeRef::NamedNode(_) => (),
             }
             predicate_objects
                 .entry(triple.predicate)
@@ -900,7 +892,7 @@ fn extract_collection<'graph>(
             return None;
         }
         let first = *firsts.first().unwrap();
-        let cur_subj = SubjectRef::BlankNode(cur);
+        let cur_subj = NamedOrBlankNodeRef::BlankNode(cur);
         involved_triples.push(TripleRef::new(cur_subj, rdf::FIRST, first));
         col.push(first);
 
@@ -964,7 +956,7 @@ where
     let mut subject_bns = vec![];
     let mut object_bns = vec![];
     for triple in g_main {
-        if let SubjectRef::BlankNode(bn_subj) = triple.subject {
+        if let NamedOrBlankNodeRef::BlankNode(bn_subj) = triple.subject {
             subject_bns.push(bn_subj);
         }
         if let TermRef::BlankNode(bn_obj) = triple.object {
@@ -986,7 +978,7 @@ fn extract_non_empty_collections<'graph>(
     let mut col_starts = vec![];
     {
         for triple in g_main {
-            if let SubjectRef::BlankNode(bn_subj) = triple.subject {
+            if let NamedOrBlankNodeRef::BlankNode(bn_subj) = triple.subject {
                 if triple.predicate == rdf::FIRST {
                     let rest_refs_to_subj = g_main
                         .subjects_for_predicate_object(rdf::REST, bn_subj)
@@ -1011,7 +1003,7 @@ fn extract_non_empty_collections<'graph>(
     cols
 }
 
-pub fn subjects(graph: &Graph) -> impl Iterator<Item = SubjectRef<'_>> + '_ {
+pub fn subjects(graph: &Graph) -> impl Iterator<Item = NamedOrBlankNodeRef<'_>> + '_ {
     let mut seen = HashSet::new();
     graph.iter().filter_map(move |triple| {
         if seen.insert(triple.subject) {
@@ -1071,7 +1063,7 @@ where
         evaluate_nestable_and_unreferenced_blank_nodes(&input.graph, unreferenced_blank_nodes);
 
     for subj in subjects(&input.graph) {
-        if let SubjectRef::BlankNode(bn) = subj {
+        if let NamedOrBlankNodeRef::BlankNode(bn) = subj {
             if nestable_blank_nodes.contains(&bn) {
                 continue;
             }

@@ -6,7 +6,7 @@ use std::collections::BTreeMap;
 use std::collections::HashMap;
 
 use oxrdf::Graph;
-use oxrdf::SubjectRef;
+use oxrdf::NamedOrBlankNodeRef;
 
 pub struct Input {
     pub base: Option<String>,
@@ -17,7 +17,7 @@ pub struct Input {
 
 impl Input {
     #[must_use]
-    pub fn extract_subjects(&self) -> Vec<SubjectRef<'_>> {
+    pub fn extract_subjects(&self) -> Vec<NamedOrBlankNodeRef<'_>> {
         let mut subjects = vec![];
         for triple in &self.graph {
             subjects.push(triple.subject);

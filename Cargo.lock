@@ -700,9 +700,8 @@ checksum = "54b4ed3a7192fa19f5f48f99871f2755047fabefd7f222f12a1df1773796a102"
 
 [[package]]
 name = "oxrdf"
-version = "0.2.4"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a04761319ef84de1f59782f189d072cbfc3a9a40c4e8bded8667202fbd35b02a"
+version = "0.3.0-dev"
+source = "git+https://github.com/elevont/oxigraph.git#9fa1b2802b0cb9e654a16d0b2cd647ba0f164d25"
 dependencies = [
  "oxilangtag",
  "oxiri",
@@ -712,9 +711,8 @@ dependencies = [
 
 [[package]]
 name = "oxttl"
-version = "0.1.8"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "0d385f1776d7cace455ef6b7c54407838eff902ca897303d06eb12a26f4cf8a0"
+version = "0.2.0-dev"
+source = "git+https://github.com/elevont/oxigraph.git#9fa1b2802b0cb9e654a16d0b2cd647ba0f164d25"
 dependencies = [
  "memchr",
  "oxilangtag",

@@ -9,7 +9,7 @@ use crate::{
     },
     vocab::prtr,
 };
-use oxrdf::{vocab::rdf, BlankNode, BlankNodeRef, SubjectRef, TermRef};
+use oxrdf::{vocab::rdf, BlankNode, BlankNodeRef, NamedOrBlankNodeRef, TermRef};
 use std::cmp::Ordering;
 
 #[must_use]
@@ -52,13 +52,14 @@ fn fetch_prtr_sorting_id<'graph>(
     context: &SortingContext<'graph>,
     bn: &BlankNodeRef<'graph>,
 ) -> Option<u32> {
-
-
     context.bn_sorting_ids.borrow().get(bn).map_or_else(
         || {
             let sorting_id_opt = context
                 .graph
-                .object_for_subject_predicate(SubjectRef::BlankNode(*bn), *prtr::SORTING_ID)
+                .object_for_subject_predicate(
+                    NamedOrBlankNodeRef::BlankNode(*bn),
+                    *prtr::SORTING_ID,
+                )
                 .and_then(|sorting_id_term| {
                     if let TermRef::Literal(sorting_id_literal) = sorting_id_term {
                         sorting_id_literal
