@@ -72,16 +72,27 @@ prttl MY_DIR
 ## Sample Output
 
 ```turtle
-@prefix ex: <http://example.com/> . # Prefix
+@prefix ex: <http://example.com/> .
 @prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
 
-# Some facts
+<s>
+  a ex:Foo ;
+  <p>
+    "foo"@en ,
+    (
+      +01
+      +1.0
+      1.0e0
+    ) ;
+  .
 
-<s> a ex:Foo ;
-    <p> "foo"@en , ( +01 +1.0 1.0e0 ) . # Foo
-
-# An anonymous blank node
-[ ex:p ex:o , ex:o2 ; ex:p2 ex:o3 ] ex:p3 true . # Bar
+[
+  ex:p
+    ex:o ,
+    ex:o2 ;
+  ex:p2 ex:o3 ;
+  ex:p3 true ;
+] .
 ```
 
 ## Features
