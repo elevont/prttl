@@ -13,7 +13,7 @@ SPDX-License-Identifier: Apache-2.0
     https://api.reuse.software/badge/codeberg.org/elevont/prttl)](
     https://api.reuse.software/info/codeberg.org/elevont/prttl)
 [![Repo](
-    https://img.shields.io/badge/Repo-GitHub-555555&logo=github.svg)](
+    https://img.shields.io/badge/Repo-CodeBerg-555555&logo=github.svg)](
     https://codeberg.org/elevont/prttl)
 [![Package Releases](
     https://img.shields.io/crates/v/prttl.svg)](
