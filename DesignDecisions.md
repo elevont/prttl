@@ -139,7 +139,7 @@ and it is what people are used to see in Turtle.
 Therefore we decided to use it as the default,
 but make the new-lines approach available
 (under the CLI flag `-n`, `--single-leafed-new-lines`).
-We recommend using the new-lines option if you care more about a celan,
+We recommend using the new-lines option if you care more about a clean,
 consistent set of rules and diff minimization,
 and/or if the Turtle is primarily edited and viewed in a graphical way,
 rather then as text.
@@ -148,14 +148,15 @@ rather then as text.
 
 tags: blank-nodes, sorting
 
-When thinking about pretty-printing Turtle:
+When thinking about pretty printing Turtle ...
 
-> **The hard problem** is:
-_How to sort blank nodes_
+> **the hard problem** is:
+_**How to sort blank nodes**_
 
 Blank nodes usually have a different random ID
 each time they get serialized or deserialized.
-That means, that sorting them by ID would make them jump around each time the ID changes.
+That means, that sorting them by ID
+would make them jump around each time the ID changes.
 
 1. Sorting by ID
 
@@ -407,26 +408,27 @@ That means, that sorting them by ID would make them jump around each time the ID
     The drawbacks of this solution is similar to the ones of the global Collection.
     We neither consider this a viable option.
 
-As this is probably the second most important part of a Turtle pretty-printer -
+As this is probably the second most important part of a Turtle pretty printer -
 even though we do not have a fully satisfying solution -
-we want to take a stance,
-and thus chose to use number 3 (Assigning IDs) as our go-to solution.
-We do not however,
+we want to take a stance:
+We chose to use number 3 (Assigning IDs) as our go-to solution.
+We do not, however,
 automatically introduce such IDs by default.
-To do that -
+To introduce them -
 which will fix the sorting of IDs
 to be in the order in which they appear in the input -
 one needs to specifically request that.
 We do it this way,
-as we deem it unfit for a pretty-printer to introduce new data by default.
+as we deem it unfit for a pretty printer to introduce new data by default.
 
 #### Comments
 
 tags: comments, sorting
 
 Comments!
-With which we here mean Turtle Syntax comments - that work as comments do in Python -
-not RDF comments, which are "linked-in" with predicates like `rdfs:comment`.
+With which we do not refer to RDF comments (like `rdfs:comment`),
+but Turtle Syntax comments,
+which are very similar to comments in Python.
 
 Comments in Turtle are started with a `#`,
 and continue to the end of the line.
@@ -478,14 +480,48 @@ BASE # Base comment 2
 # ...
 ```
 
-As this example tries to show (quite over-excessively so, of coarse),
+As this example tries to show (quite over-excessively so, of course),
 is that comments usually have a scope,
 or say, they are associated with a part of the code
 (in this case: the actual RDF data).
 These comments are almost exclusively targeted at humans,
 and they are written by humans too.
-Between humans is where they operate and work.
-Most human readers can make out quite quickly the scope/
+Most human readers can make out quite quickly the scope/target of a comment in the code,
+for machines though, that is a hard task,
+and is not possible without heuristics and a lot of guessing.
+For all practical purposes, we can think of it as impossible (for machines).
+
+Without a mapping of comments to parts of the code,
+sorting of the code parts while retaining the comments
+**in a location where they make sense to a human**
+is not possible.
+
+Because we want to clearly lean towards diff minimization,
+we definitely want to have sorting,
+and thus the only way to deal with comments,
+is to remove support for them entirely.
+
+Given this,
+we still have to decide how exactly to go about this,
+as we could:
+
+1. Silently drop/ignore all comments (by default)
+2. Fail if any comments are detected in the input,
+    and suggest to convert them to RDF comments
+3. ... with an option to ignore them forcefully,
+    which has the same effect as 1.
+4. Have an automated way to convert them to RDF comments
+5. Fail if comments are detected,
+    but suggest to use the optional process from 4.
+
+The process of auto-converting to RDF comments
+used in 4. and 5. would be nice to have,
+but is tedious to write, test and get right
+in a way that feels right for most humans.
+It goes beyond what we could do in this project,
+but is an interesting [feature for the future](TODO link to issue on the new repo for this software) of this software.
+
+TODO Document how to convert/refactor Turtle comments into RDF ones.
 
 #### Nested vs Labelled Blank Nodes
 
@@ -590,7 +626,7 @@ That is only relevant if `prtr:sortingId` is not used.
 For human readability,
 we deem it a clear case of the _max nested_ approach being far superior.
 
-Thus, max nested wins in all regards,
+Thus, _max nested_ wins in all regards,
 and is therefore what we use,
 without even the option to choose _max labelled_.
 
