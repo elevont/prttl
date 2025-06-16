@@ -6,6 +6,28 @@ SPDX-FileCopyrightText: 2022 Helsing GmbH
 SPDX-License-Identifier: Apache-2.0
 -->
 
+[![License: Apache-2.0](
+    https://img.shields.io/badge/License-Apache--2.0-blue.svg)](
+    LICENSE.txt)
+[![REUSE status](
+    https://api.reuse.software/badge/codeberg.org/elevont/prttl)](
+    https://api.reuse.software/info/codeberg.org/elevont/prttl)
+[![Repo](
+    https://img.shields.io/badge/Repo-GitHub-555555&logo=github.svg)](
+    https://codeberg.org/elevont/prttl)
+[![Package Releases](
+    https://img.shields.io/crates/v/prttl.svg)](
+    https://crates.io/crates/prttl)
+[![Documentation Releases](
+    https://docs.rs/prttl/badge.svg)](
+    https://docs.rs/prttl)
+[![Dependency Status](
+    https://deps.rs/repo/codeberg.org/elevont/prttl/status.svg)](
+    https://deps.rs/repo/codeberg.org/elevont/prttl)
+[![Build Status](
+    https://codeberg.org/elevont/prttl/workflows/build/badge.svg)](
+    https://codeberg.org/elevont/prttl/actions)
+
 `prttl` is an auto formatter aka pretty printer
 for [RDF Turtle](https://www.w3.org/TR/turtle/)
 under Apache 2 license.
