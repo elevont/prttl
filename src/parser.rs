@@ -16,11 +16,13 @@ use crate::{input::Input, options::FormatOptions};
 
 #[derive(Error, Debug)]
 pub enum Error {
-    #[error("We do not support redefinition of prefixes,
+    #[error(
+        "We do not support redefinition of prefixes,
 which is the case with '{0}'.
 
 For more information, see:
-<https://codeberg.org/elevont/prttl/src/branch/main/DesignDecisions.md#prefix-redefinition>")]
+<https://codeberg.org/elevont/prttl/src/branch/main/DesignDecisions.md#prefix-redefinition>"
+    )]
     PrefixRedefinition(String),
 
     #[error(
