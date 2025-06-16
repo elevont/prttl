@@ -105,3 +105,7 @@ prttl MY_DIR
 - Uses literals short notation for booleans, integers, decimals and doubles
   when it keeps the lexical representation unchanged.
 - Uses `a` for `rdf:type` where possible.
+
+... and more.
+A much more detailed account and reasoning behind what this tool does,
+can be found in [DesignDecisions.md](DesignDecisions.md).
