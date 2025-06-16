@@ -29,8 +29,8 @@ SPDX-License-Identifier: Apache-2.0
     https://codeberg.org/elevont/prttl/actions)
 
 `prttl` is an auto formatter (aka pretty printer)
-for [RDF Turtle](https://www.w3.org/TR/turtle/),
-Optimized for diff minimization,
+for [RDF Turtle](https://www.w3.org/TR/turtle/).
+It is optimized for diff minimization,
 which is of value when developing Turtle (e.g. an Ontology) in a git repo.
 
 ## Installation
