@@ -94,13 +94,13 @@ fn find_duplicate_values(map: &BTreeMap<String, String>) -> HashMap<String, Vec<
 }
 
 /// Parses a given (supposedly) Turtle file content into an [`Input`],
-/// which can then be fed into [`formatter::format`].
+/// which can then be fed into [`crate::formatter::format`].
 ///
 /// # Errors
 ///
 /// - [`Error::TurtleSyntaxError`]
+/// - [`Error::BaseRedefinition`]
 /// - [`Error::PrefixRedefinition`]
-/// - [`Error::MultipleBases`]
 /// - [`Error::MultiplePrefixesForNamespace`]
 /// - [`Error::PrefixAndBaseShareNamespace`]
 pub fn parse(turtle_str: &[u8], options: &Rc<FormatOptions>) -> Result<Input, Error> {
