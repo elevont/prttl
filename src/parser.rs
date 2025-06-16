@@ -33,7 +33,7 @@ Conflicting namespaces:
 Please consider refactoring the input first. \
 More info can be found at ..."
     )] // TODO Add link to README?
-    MultipleBases,
+    BaseRedefinition,
 
     #[error(
         "We do not support a prefix ({0}) and a base to cover the same namespace. \
@@ -99,7 +99,7 @@ pub fn parse(turtle_str: &[u8], options: &Rc<FormatOptions>) -> Result<Input, Er
         if let Some(cur_base) = parser.base_iri() {
             if let Some(base_val) = base {
                 if base_val != cur_base {
-                    return Err(Error::MultipleBases);
+                    return Err(Error::BaseRedefinition);
                 }
             }
             base = Some(cur_base.to_owned());
