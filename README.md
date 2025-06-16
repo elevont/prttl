@@ -42,7 +42,7 @@ prttl MY_DIR
 
 `prttl` is in development and its output format is not stable yet.
 
-Example:
+## Sample Output
 
 ```turtle
 @prefix ex: <http://example.com/> . # Prefix
@@ -57,7 +57,7 @@ Example:
 [ ex:p ex:o , ex:o2 ; ex:p2 ex:o3 ] ex:p3 true . # Bar
 ```
 
-For now, it:
+## Features
 
 - Validates that the file is valid.
 - Maintains consistent indentation and line jumps.
