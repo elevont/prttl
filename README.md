@@ -35,9 +35,11 @@ which is of value when developing Turtle (e.g. an Ontology) in a git repo.
 
 ## Installation
 
-It is currently distributed on:
-
-- [Crates.io](https://crates.io/crates/prttl): `cargo install prttl`
+It is distributed on [Crates.io](https://crates.io/crates/prttl),
+and can be installed with `cargo install prttl`.
+Make sure you have [cargo installed](
+https://doc.rust-lang.org/cargo/getting-started/installation.html)
+before doing that.
 
 ## Usage
 
