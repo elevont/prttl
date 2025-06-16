@@ -494,8 +494,7 @@ so we write them as data-typed literals."
                 context.indent_level += 1;
                 for predicates_cont in predicates_containers {
                     self.fmt_named_node(context, &predicates_cont.predicate)?;
-                    if !self.options.single_leafed_new_lines && predicates_cont.is_single_leafed()
-                    {
+                    if !self.options.single_leafed_new_lines && predicates_cont.is_single_leafed() {
                         write!(context.output, " ")?;
                         let bak_indent = context.indent_level;
                         context.indent_level = 0;
