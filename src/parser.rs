@@ -16,7 +16,11 @@ use crate::{input::Input, options::FormatOptions};
 
 #[derive(Error, Debug)]
 pub enum Error {
-    #[error("We do not support redefinition of prefixes, which is the case with {0}")]
+    #[error("We do not support redefinition of prefixes,
+which is the case with '{0}'.
+
+For more information, see:
+<https://codeberg.org/elevont/prttl/src/branch/main/DesignDecisions.md#prefix-redefinition>")]
     PrefixRedefinition(String),
 
     #[error(
@@ -24,33 +28,40 @@ pub enum Error {
 Please consider refactoring the input first. \
 More info can be found at ...
 Conflicting namespaces:
-{0:#?}"
-    )] // TODO Add link to README?
+{0:#?}
+
+For more information, see:
+<https://codeberg.org/elevont/prttl/src/branch/main/DesignDecisions.md#prefixes-with-equal-namespace>"
+    )]
     MultiplePrefixesForNamespace(HashMap<String, Vec<String>>),
 
     #[error(
         "We do not support handling of comments.
 Please consider refactoring.
 The reason for that and hints for how to do the refactoring
-can be found at <>.
+can be found at <https://codeberg.org/elevont/prttl/src/branch/main/DesignDecisions.md#comments>.
 
 Alternatively, you may choose to `--force` the pretty-printing anyway,
 **Which will remove all the Turtle syntax comments in your file!**"
-    )] // TODO Add link to DesignDecisions.md?
+    )]
     Comment,
 
     #[error(
         "We do not support more then one base IRI defined per file. \
-Please consider refactoring the input first. \
-More info can be found at ..."
-    )] // TODO Add link to README?
+Please consider refactoring the input first.
+
+For more information, see:
+<https://codeberg.org/elevont/prttl/src/branch/main/DesignDecisions.md#base-redefinition>"
+    )]
     BaseRedefinition,
 
     #[error(
         "We do not support a prefix ({0}) and a base to cover the same namespace. \
-Please consider refactoring the input first. \
-More info can be found at ..."
-    )] // TODO Add link to README?
+Please consider refactoring the input first.
+
+For more information, see:
+<https://codeberg.org/elevont/prttl/src/branch/main/DesignDecisions.md#prefix-vs-base>"
+    )]
     PrefixAndBaseShareNamespace(String),
 
     #[error(transparent)]
