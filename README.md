@@ -1,4 +1,4 @@
-# TurtleFmt
+# `prttl` - Prettier Turtle
 
 <!--
 SPDX-FileCopyrightText: 2022 Helsing GmbH
@@ -6,7 +6,9 @@ SPDX-FileCopyrightText: 2022 Helsing GmbH
 SPDX-License-Identifier: Apache-2.0
 -->
 
-`turtlefmt` is an auto formatter for [RDF Turtle](https://www.w3.org/TR/turtle/) under Apache 2 license.
+`prttl` is an auto formatter aka pretty printer
+for [RDF Turtle](https://www.w3.org/TR/turtle/)
+under Apache 2 license.
 
 ## Installation
 
@@ -22,13 +24,13 @@ Build from source requires NodeJS 6.0+ to be available in your `PATH`.
 To use it:
 
 ```sh
-turtlefmt MY_TURTLE_FILE.ttl
+prttl MY_TURTLE_FILE.ttl
 ```
 
 It is also possible to check if formatting of a given file is valid according to the formatter using:
 
 ```sh
-turtlefmt --check MY_TURTLE_FILE.ttl
+prttl --check MY_TURTLE_FILE.ttl
 ```
 
 If the formatting is not valid, a patch to properly format the file is written to the standard output.
@@ -36,12 +38,12 @@ If the formatting is not valid, a patch to properly format the file is written t
 It is also possible to check a complete directory (and its subdirectories):
 
 ```sh
-turtlefmt MY_DIR
+prttl MY_DIR
 ```
 
 ## Format
 
-`turtlefmt` is in development and its output format is not stable yet.
+`prttl` is in development and its output format is not stable yet.
 
 Example:
 

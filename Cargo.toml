@@ -12,10 +12,10 @@ edition = "2021"
 keywords = ["pretty-print", "rdf", "turtle"]
 categories = ["command-line-utilities", "development-tools", "value-formatting"]
 license = "Apache-2.0"
-name = "turtlefmt"
+name = "prttl"
 readme = "README.md"
-repository = "https://github.com/helsing-ai/turtlefmt"
-homepage = "https://github.com/helsing-ai/turtlefmt"
+repository = "https://codeberg.org/elevont/prttl"
+homepage = "https://codeberg.org/elevont/prttl"
 rust-version = "1.81.0"
 version = "0.1.2"
 

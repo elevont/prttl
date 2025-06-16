@@ -7,9 +7,9 @@ use std::{path::PathBuf, sync::LazyLock};
 use clap::{command, crate_name, value_parser, Arg, ArgAction, Command, ValueHint};
 use cli_utils::logging;
 use const_format::formatcp;
+use prttl::options::FormatOptions;
 use thiserror::Error;
 use tracing_subscriber::filter::LevelFilter;
-use turtlefmt::options::FormatOptions;
 
 pub const A_L_CANONICALIZE: &str = "canonicalize";
 // pub const A_S_CANONICALIZE: char = 'C';
@@ -264,7 +264,7 @@ fn print_version_and_exit(quiet: bool) {
     if !quiet {
         print!("{} ", clap::crate_name!());
     }
-    println!("{}", turtlefmt::VERSION);
+    println!("{}", prttl::VERSION);
     std::process::exit(0);
 }
 

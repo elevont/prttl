@@ -3,10 +3,10 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use cli::InitError;
+use prttl::error::Error;
 use std::ffi::OsStr;
 use std::rc::Rc;
 use thiserror::Error;
-use turtlefmt::error::Error;
 
 mod cli;
 
@@ -16,7 +16,7 @@ pub enum CliError {
     Init(#[from] InitError),
 
     #[error("Failed to run the formatter: {0}")]
-    Format(#[from] turtlefmt::error::Error),
+    Format(#[from] prttl::error::Error),
 }
 
 fn main() -> Result<(), CliError> {
@@ -28,12 +28,12 @@ fn main() -> Result<(), CliError> {
         if source.is_file() {
             files.push(source);
         } else if source.is_dir() {
-            turtlefmt::add_files_with_suffix(&source, OsStr::new("ttl"), &mut files)?;
+            prttl::add_files_with_suffix(&source, OsStr::new("ttl"), &mut files)?;
         } else {
             return Err(Error::TargetFileDoesNotExist(source).into());
         }
     }
 
-    turtlefmt::run(&options, &files)?;
+    prttl::run(&options, &files)?;
     Ok(())
 }
