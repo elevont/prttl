@@ -7,28 +7,10 @@ pub struct FormatOptions {
     pub check: bool,
     /// Space(s) or tab(s) representing one level of indentation.
     pub indentation: String,
-    // /// Whether to sort subjects, predicates and objects,
-    // /// including within blank-nodes
-    // pub sort_terms: bool,
-    // /// Enables inserting new-lines before the following:
-    // ///
-    // /// - a subjects finalizing dot
-    // /// - the first predicate of a subject
-    // /// - the first object within one subject-predicate pair
-    // /// - each objects within one subject-predicate pair
-    // /// - each collection item;
-    // ///   see <https://www.w3.org/TR/rdf12-turtle/#collections>
-    // /// - each predicate within a blank-node
-    // pub new_lines_for_easy_diff: bool,
     /// Whether to move a single/lone object
     /// (within one subject-predicate pair) onto a new line,
     /// or to keep it on the same line as the predicate.
-    pub single_object_on_new_line: bool,
-    /// Whether to cleanup/unify empty lines used as dividers.
-    /// This ensures that there is exactly one empty line
-    /// before and after each subject,
-    /// and that there is none anywhere else.
-    // pub cleanup_dividing_empty_lines: bool,
+    pub single_leafed_new_lines: bool,
     /// Whether to force-write the output,
     /// even if potential issues with the formatting have been detected.
     pub force: bool,
@@ -77,9 +59,7 @@ impl Default for FormatOptions {
         Self {
             check: true,
             indentation: "  ".to_string(),
-            // sort_terms: false,
-            // new_lines_for_easy_diff: false,
-            single_object_on_new_line: false,
+            single_leafed_new_lines: false,
             force: false,
             prtr_sorting: true,
             sparql_syntax: false,

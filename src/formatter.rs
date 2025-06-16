@@ -325,7 +325,7 @@ impl<'graph> TurtleFormatter<'graph> {
         match collection {
             TCollection::Empty => (),
             TCollection::WithContent(collection_ref) => {
-                if !self.options.single_object_on_new_line && collection.is_single_leafed() {
+                if !self.options.single_leafed_new_lines && collection.is_single_leafed() {
                     write!(context.output, " ")?;
                     let bak_indent = context.indent_level;
                     context.indent_level = 0;
@@ -470,7 +470,7 @@ so we write them as data-typed literals."
         final_dot: bool,
     ) -> FmtResult<()> {
         if !predicates_containers.is_empty() {
-            if !self.options.single_object_on_new_line
+            if !self.options.single_leafed_new_lines
                 && predicates_containers.len() == 1
                 && predicates_containers.first().unwrap().is_single_leafed()
             {
@@ -494,7 +494,7 @@ so we write them as data-typed literals."
                 context.indent_level += 1;
                 for predicates_cont in predicates_containers {
                     self.fmt_named_node(context, &predicates_cont.predicate)?;
-                    if !self.options.single_object_on_new_line && predicates_cont.is_single_leafed()
+                    if !self.options.single_leafed_new_lines && predicates_cont.is_single_leafed()
                     {
                         write!(context.output, " ")?;
                         let bak_indent = context.indent_level;

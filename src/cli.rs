@@ -27,8 +27,8 @@ pub const A_L_NO_PRTR_SORTING: &str = "no-prtr-sorting";
 // pub const A_S_NO_PRTR_SORTING: char = 'p';
 pub const A_L_NO_SPARQL_SYNTAX: &str = "no-sparql-syntax";
 // pub const A_S_NO_SPARQL_SYNTAX: char = 's';
-pub const A_L_SINGLE_ENTRY_ON_NEW_LINE: &str = "single-entry-on-new-line";
-pub const A_S_SINGLE_ENTRY_ON_NEW_LINE: char = 'n';
+pub const A_L_SINGLE_LEAFED_NEW_LINES: &str = "single-leafed-new-lines";
+pub const A_S_SINGLE_LEAFED_NEW_LINES: char = 'n';
 pub const A_L_QUIET: &str = "quiet";
 pub const A_S_QUIET: char = 'q';
 pub const A_L_VERBOSE: &str = "verbose";
@@ -175,11 +175,11 @@ PREFIX foaf: <http://xmlns.com/foaf/0.1/> \
 }
 
 fn arg_single_entry_on_new_line() -> Arg {
-    Arg::new(A_L_SINGLE_ENTRY_ON_NEW_LINE)
+    Arg::new(A_L_SINGLE_LEAFED_NEW_LINES)
         .help("Whether to move a single/lone predicate-object pair or object alone onto a new line")
         .action(ArgAction::SetTrue)
-        .short(A_S_SINGLE_ENTRY_ON_NEW_LINE)
-        .long(A_L_SINGLE_ENTRY_ON_NEW_LINE)
+        .short(A_S_SINGLE_LEAFED_NEW_LINES)
+        .long(A_L_SINGLE_LEAFED_NEW_LINES)
 }
 
 fn arg_quiet() -> Arg {
@@ -370,7 +370,7 @@ pub fn init() -> Result<(FormatOptions, Vec<PathBuf>), InitError> {
     let max_nesting = !args.get_flag(A_L_LABEL_ALL_BLANK_NODES);
     let prtr_sorting = !args.get_flag(A_L_NO_PRTR_SORTING);
     let sparql_syntax = !args.get_flag(A_L_NO_SPARQL_SYNTAX);
-    let single_object_on_new_line = args.get_flag(A_L_SINGLE_ENTRY_ON_NEW_LINE);
+    let single_leafed_new_lines = args.get_flag(A_L_SINGLE_LEAFED_NEW_LINES);
     let warn_unsupported_numbers = true;
 
     let indentation = " ".repeat(indentation_spaces);
@@ -383,7 +383,7 @@ pub fn init() -> Result<(FormatOptions, Vec<PathBuf>), InitError> {
         FormatOptions {
             check,
             indentation,
-            single_object_on_new_line,
+            single_leafed_new_lines,
             force,
             prtr_sorting,
             sparql_syntax,
