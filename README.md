@@ -24,13 +24,15 @@ To use it:
 prttl MY_TURTLE_FILE.ttl
 ```
 
-It is also possible to check if formatting of a given file is valid according to the formatter using:
+It is also possible to check if formatting of a given file is valid
+according to the formatter using:
 
 ```sh
 prttl --check MY_TURTLE_FILE.ttl
 ```
 
-If the formatting is not valid, a patch to properly format the file is written to the standard output.
+If the formatting is not valid,
+a patch to properly format the file is written to the standard output.
 
 It is also possible to check a complete directory (and its subdirectories):
 
@@ -61,7 +63,9 @@ prttl MY_DIR
 
 - Validates that the file is valid.
 - Maintains consistent indentation and line jumps.
-- Normalises string and IRI escapes to reduce their number as much as possible.
+- Normalizes string and IRI escapes
+  to reduce their number as much as possible.
 - Enforces the use of `"` instead of `'` in literals.
-- Uses literals short notation for booleans, integers, decimals and doubles when it keeps the lexical representation unchanged.
+- Uses literals short notation for booleans, integers, decimals and doubles
+  when it keeps the lexical representation unchanged.
 - Uses `a` for `rdf:type` where possible.
