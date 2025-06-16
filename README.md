@@ -97,10 +97,10 @@ prttl MY_DIR
 
 ## Features
 
-- Validates that the file is valid.
-- Maintains consistent indentation and line jumps.
-- Normalizes string and IRI escapes
-  to reduce their number as much as possible.
+- **Removes all Turtle syntax comments.**
+- Checks that the file is valid.
+- Maintains consistent indentation and new-lines.
+- Normalizes string and IRI escapes as much as possible.
 - Enforces the use of `"` instead of `'` in literals.
 - Uses literals short notation for booleans, integers, decimals and doubles
   when it keeps the lexical representation unchanged.
