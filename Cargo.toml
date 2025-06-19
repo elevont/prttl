@@ -28,7 +28,7 @@ pedantic = { level = "warn", priority = -1 }
 nursery = { level = "warn", priority = -1 }
 cargo = { level = "warn", priority = -1 }
 wildcard_enum_match_arm = "warn"
-string_slice = "warn"
+# string_slice = "warn"
 indexing_slicing = "warn"
 clone_on_ref_ptr = "warn"
 try_err = "warn"
