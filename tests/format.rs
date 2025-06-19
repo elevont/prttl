@@ -12,7 +12,7 @@ fn fmt_opts_strict(single_object_on_new_line: bool) -> FormatOptions {
     FormatOptions {
         indentation: "  ".to_string(),
         single_leafed_new_lines: single_object_on_new_line,
-        force: false,
+        force: true,
         prtr_sorting: true,
         check: false,
         sparql_syntax: false,

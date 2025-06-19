@@ -99,7 +99,7 @@ fn options() -> FormatOptions {
         check: false,
         indentation: "  ".to_string(),
         single_leafed_new_lines: false,
-        force: false,
+        force: true,
         prtr_sorting: false,
         sparql_syntax: false,
         max_nesting: true,
