@@ -7,6 +7,7 @@ use crate::ast::{
     construct_tree, SortingContext, TBlankNode, TBlankNodeRef, TCollection, TLiteralRef,
     TNamedNode, TObject, TPredicateCont, TRoot, TSubject, TSubjectCont, TTriple,
 };
+use crate::constants::SUBSTITUTE_BASE;
 use crate::context::Context;
 use crate::error::Error;
 use crate::error::FmtResult;
@@ -214,6 +215,9 @@ const fn can_be_escaped_in_local_name(c: char) -> bool {
 impl<'graph> TurtleFormatter<'graph> {
     fn fmt_base<W: Write>(&self, context: &mut Context<W>) -> FmtResult<()> {
         let base_iri = if let Some(base_iri) = self.input.base.as_deref() {
+            if base_iri == SUBSTITUTE_BASE {
+                return Ok(());
+            }
             base_iri.to_owned()
         } else {
             return Ok(());

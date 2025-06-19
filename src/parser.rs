@@ -12,7 +12,7 @@ use oxttl::TurtleParser;
 
 use thiserror::Error;
 
-use crate::{input::Input, options::FormatOptions};
+use crate::{constants::SUBSTITUTE_BASE, input::Input, options::FormatOptions};
 
 #[derive(Error, Debug)]
 pub enum Error {
@@ -106,8 +106,9 @@ fn find_duplicate_values(map: &BTreeMap<String, String>) -> HashMap<String, Vec<
 pub fn parse(turtle_str: &[u8], options: &Rc<FormatOptions>) -> Result<Input, Error> {
     let mut graph = Graph::new();
 
-    let mut parser = TurtleParser::new().low_level();
-    parser.extend_from_slice(b"@base <http://a.a> .\n"); // TODO HACK!
+    let mut parser = TurtleParser::new()
+        .with_base_iri(SUBSTITUTE_BASE)?
+        .low_level();
     if let Some(parse_res) = parser.parse_next() {
         parse_res?;
     }

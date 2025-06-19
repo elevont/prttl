@@ -14,6 +14,7 @@ use git_version::git_version;
 
 pub mod ast;
 pub mod compare;
+pub mod constants;
 pub mod context;
 pub mod error;
 pub mod formatter;
