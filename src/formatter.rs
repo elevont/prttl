@@ -574,6 +574,15 @@ so we write them as data-typed literals."
         if !matches!(subj_cont.subject, TSubject::BlankNodeAnonymous(_)) {
             self.fmt_predicates(context, &subj_cont.predicates, true)?;
         }
+        if matches!(
+            subj_cont.subject,
+            TSubject::BlankNodeAnonymous(_) | TSubject::Collection(_)
+        ) {
+            if matches!(subj_cont.subject, TSubject::BlankNodeAnonymous(_)) {
+                write!(context.output, " .")?;
+            }
+            writeln!(context.output)?;
+        }
         writeln!(context.output)?;
         Ok(())
     }
