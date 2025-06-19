@@ -12,6 +12,7 @@ use std::rc::Rc;
 use std::sync::LazyLock;
 
 use oxrdf::vocab::rdf;
+use oxrdf::vocab::xsd;
 use oxrdf::BlankNodeRef;
 use oxrdf::Graph;
 use oxrdf::LiteralRef;
@@ -419,7 +420,8 @@ impl<'us, 'graph> TObject<'graph> {
                 }
             }
             TermRef::Literal(literal_ref) => {
-                let data_type_nn = if literal_ref.is_plain() {
+                let ox_datatype = literal_ref.datatype();
+                let data_type_nn = if matches!(ox_datatype, xsd::STRING | rdf::LANG_STRING) {
                     None
                 } else {
                     Some(TNamedNode::from(input, literal_ref.datatype()))
