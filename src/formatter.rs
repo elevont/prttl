@@ -325,7 +325,7 @@ impl<'graph> TurtleFormatter<'graph> {
     ) -> FmtResult<()> {
         self.write_indent(context)?;
         if self.unreferenced_blank_nodes.contains(blank_node) {
-            write!(context.output, "[]")?;
+            panic!("Unreferenced blank-node stored in tree as labeled; should be anonymous");
         } else {
             write!(context.output, "{blank_node}")?;
         }
@@ -571,7 +571,9 @@ so we write them as data-typed literals."
         subj_cont: &TSubjectCont<'graph>,
     ) -> FmtResult<()> {
         self.fmt_subj(context, &subj_cont.subject)?;
-        self.fmt_predicates(context, &subj_cont.predicates, true)?;
+        if !matches!(subj_cont.subject, TSubject::BlankNodeAnonymous(_)) {
+            self.fmt_predicates(context, &subj_cont.predicates, true)?;
+        }
         writeln!(context.output)?;
         Ok(())
     }

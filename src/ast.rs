@@ -63,6 +63,7 @@ impl<'us, 'graph> TSubject<'graph> {
         g_main: &'graph Graph,
         non_empty_valid_cols: &'us HashMap<BlankNodeRef<'graph>, Vec<TermRef<'graph>>>,
         nestable_blank_nodes: &HashSet<BlankNodeRef<'graph>>,
+        unreferenced_blank_nodes: &HashSet<BlankNodeRef<'graph>>,
         col_involved_triples: &Vec<TripleRef<'graph>>,
         other: NamedOrBlankNodeRef<'graph>,
     ) -> Self {
@@ -70,26 +71,27 @@ impl<'us, 'graph> TSubject<'graph> {
             NamedOrBlankNodeRef::NamedNode(named_node_ref) => {
                 Self::NamedNode(TNamedNode::from(input, named_node_ref))
             }
-            NamedOrBlankNodeRef::BlankNode(blank_node_ref) => {
-                // Self::BlankNodeLabel(TBlankNodeRef(blank_node_ref))
-                match blank_node_label_or_collection(
-                    input,
-                    g_main,
-                    non_empty_valid_cols,
-                    nestable_blank_nodes,
-                    col_involved_triples,
-                    blank_node_ref,
-                )
-                .expect("Infallible")
-                {
-                    Some(TBlankNodeOrCollection::BlankNode(_bn)) => {
-                        // TObject::BlankNodeAnonymous(bn);
-                        panic!("We should never be able to have an anonymous blank node as triple object");
+            NamedOrBlankNodeRef::BlankNode(blank_node_ref) => match blank_node_label_or_collection(
+                input,
+                g_main,
+                non_empty_valid_cols,
+                nestable_blank_nodes,
+                unreferenced_blank_nodes,
+                col_involved_triples,
+                blank_node_ref,
+            )
+            .expect("Infallible")
+            {
+                Some(TBlankNodeOrCollection::BlankNode(bn)) => Self::BlankNodeAnonymous(bn),
+                Some(TBlankNodeOrCollection::Collection(col)) => Self::Collection(col),
+                None => {
+                    if unreferenced_blank_nodes.contains(&blank_node_ref) {
+                        panic!("There should never be a labelled blank node that is unreferenced (should be anonymous) -> programer error!");
+                    } else {
+                        Self::BlankNodeLabel(TBlankNodeRef(blank_node_ref))
                     }
-                    Some(TBlankNodeOrCollection::Collection(col)) => Self::Collection(col),
-                    None => Self::BlankNodeLabel(TBlankNodeRef(blank_node_ref)),
                 }
-            }
+            },
         }
     }
 }
@@ -145,6 +147,7 @@ impl<'us, 'graph> TSubjectCont<'graph> {
         g_main: &'graph Graph,
         non_empty_valid_cols: &'us HashMap<BlankNodeRef<'graph>, Vec<TermRef<'graph>>>,
         nestable_blank_nodes: &HashSet<BlankNodeRef<'graph>>,
+        unreferenced_blank_nodes: &HashSet<BlankNodeRef<'graph>>,
         col_involved_triples: &Vec<TripleRef<'graph>>,
         other: NamedOrBlankNodeRef<'graph>,
     ) -> Self {
@@ -154,6 +157,7 @@ impl<'us, 'graph> TSubjectCont<'graph> {
                 g_main,
                 non_empty_valid_cols,
                 nestable_blank_nodes,
+                unreferenced_blank_nodes,
                 col_involved_triples,
                 other,
             ),
@@ -392,6 +396,7 @@ impl<'us, 'graph> TObject<'graph> {
         g_main: &'graph Graph,
         non_empty_valid_cols: &'us HashMap<BlankNodeRef<'graph>, Vec<TermRef<'graph>>>,
         nestable_blank_nodes: &HashSet<BlankNodeRef<'graph>>,
+        unreferenced_blank_nodes: &HashSet<BlankNodeRef<'graph>>,
         col_involved_triples: &Vec<TripleRef<'graph>>,
         other: TermRef<'graph>,
     ) -> Self {
@@ -409,6 +414,7 @@ impl<'us, 'graph> TObject<'graph> {
                     g_main,
                     non_empty_valid_cols,
                     nestable_blank_nodes,
+                    unreferenced_blank_nodes,
                     col_involved_triples,
                     blank_node_ref,
                 )
@@ -433,6 +439,7 @@ impl<'us, 'graph> TObject<'graph> {
                 g_main,
                 non_empty_valid_cols,
                 nestable_blank_nodes,
+                unreferenced_blank_nodes,
                 col_involved_triples,
                 &triple.as_ref(),
             ))),
@@ -530,6 +537,7 @@ impl<'us, 'graph> TTriple<'graph> {
         g_main: &'graph Graph,
         non_empty_valid_cols: &'us HashMap<BlankNodeRef<'graph>, Vec<TermRef<'graph>>>,
         nestable_blank_nodes: &HashSet<BlankNodeRef<'graph>>,
+        unreferenced_blank_nodes: &HashSet<BlankNodeRef<'graph>>,
         col_involved_triples: &Vec<TripleRef<'graph>>,
         other: &TripleRef<'graph>,
     ) -> Self {
@@ -539,6 +547,7 @@ impl<'us, 'graph> TTriple<'graph> {
                 g_main,
                 non_empty_valid_cols,
                 nestable_blank_nodes,
+                unreferenced_blank_nodes,
                 col_involved_triples,
                 other.subject,
             ),
@@ -548,6 +557,7 @@ impl<'us, 'graph> TTriple<'graph> {
                 g_main,
                 non_empty_valid_cols,
                 nestable_blank_nodes,
+                unreferenced_blank_nodes,
                 col_involved_triples,
                 other.object,
             ),
@@ -579,6 +589,7 @@ fn blank_node_label_or_collection<'graph>(
     g_main: &'graph Graph,
     non_empty_valid_cols: &HashMap<BlankNodeRef<'graph>, Vec<TermRef<'graph>>>,
     nestable_blank_nodes: &HashSet<BlankNodeRef<'graph>>,
+    unreferenced_blank_nodes: &HashSet<BlankNodeRef<'graph>>,
     col_involved_triples: &Vec<TripleRef<'graph>>,
     bn: BlankNodeRef<'graph>,
 ) -> Result<Option<TBlankNodeOrCollection<'graph>>, Infallible> {
@@ -589,6 +600,7 @@ fn blank_node_label_or_collection<'graph>(
             g_main,
             non_empty_valid_cols,
             nestable_blank_nodes,
+            unreferenced_blank_nodes,
             col_involved_triples,
             g_main.triples_for_subject(bn),
         )?;
@@ -603,6 +615,7 @@ fn blank_node_label_or_collection<'graph>(
                             g_main,
                             non_empty_valid_cols,
                             nestable_blank_nodes,
+                            unreferenced_blank_nodes,
                             col_involved_triples,
                             *term,
                         )
@@ -610,13 +623,14 @@ fn blank_node_label_or_collection<'graph>(
                     .collect(),
             }),
         ))
-    } else if nestable_blank_nodes.contains(&bn) {
+    } else if nestable_blank_nodes.contains(&bn) || unreferenced_blank_nodes.contains(&bn) {
         let mut tbn = TBlankNode::from(bn);
         tbn.create_graph_entry(
             input,
             g_main,
             non_empty_valid_cols,
             nestable_blank_nodes,
+            unreferenced_blank_nodes,
             col_involved_triples,
             g_main.triples_for_subject(bn),
         )?;
@@ -637,6 +651,7 @@ trait PredicatesStore<'graph> {
         g_main: &'graph Graph,
         non_empty_valid_cols: &'us HashMap<BlankNodeRef<'graph>, Vec<TermRef<'graph>>>,
         nestable_blank_nodes: &HashSet<BlankNodeRef<'graph>>,
+        unreferenced_blank_nodes: &HashSet<BlankNodeRef<'graph>>,
         col_involved_triples: &Vec<TripleRef<'graph>>,
         level_triples: impl Iterator<Item = TripleRef<'graph>>,
     ) -> Result<(), Infallible>
@@ -670,6 +685,7 @@ trait PredicatesStore<'graph> {
                     g_main,
                     non_empty_valid_cols,
                     nestable_blank_nodes,
+                    unreferenced_blank_nodes,
                     col_involved_triples,
                     object,
                 );
@@ -679,6 +695,7 @@ trait PredicatesStore<'graph> {
                         g_main,
                         non_empty_valid_cols,
                         nestable_blank_nodes,
+                        unreferenced_blank_nodes,
                         col_involved_triples,
                         bn,
                     )? {
@@ -1025,9 +1042,9 @@ pub fn subjects(graph: &Graph) -> impl Iterator<Item = NamedOrBlankNodeRef<'_>> 
 /// # Errors
 ///
 /// Never fails (Infallible).
-pub fn construct_tree<'tree, 'graph, S: ::std::hash::BuildHasher>(
+pub fn construct_tree<'tree, 'graph>(
     tree_root: &'tree mut TRoot<'graph>,
-    unreferenced_blank_nodes: &'tree mut HashSet<BlankNodeRef<'graph>, S>,
+    unreferenced_blank_nodes: &'tree mut HashSet<BlankNodeRef<'graph>>,
     input: &'graph Input,
 ) -> Result<(), Infallible>
 where
@@ -1080,6 +1097,7 @@ where
             &input.graph,
             &non_empty_valid_cols,
             &nestable_blank_nodes,
+            unreferenced_blank_nodes,
             &col_involved_triples.borrow(),
             subj,
         );
@@ -1088,6 +1106,7 @@ where
             &input.graph,
             &non_empty_valid_cols,
             &nestable_blank_nodes,
+            unreferenced_blank_nodes,
             &col_involved_triples.borrow(),
             level_triples,
         )?;
