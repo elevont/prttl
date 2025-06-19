@@ -15,7 +15,7 @@ use oxrdf::{vocab::rdf, vocab::xsd, BlankNodeRef, NamedNodeRef};
 use regex::Regex;
 use std::cell::RefCell;
 use std::collections::{HashMap, HashSet};
-use std::fmt::Write;
+use std::fmt::{self, Write};
 use std::rc::Rc;
 use std::sync::LazyLock;
 
@@ -371,47 +371,113 @@ impl<'graph> TurtleFormatter<'graph> {
         Ok(())
     }
 
+    /// Copied from [`oxrdf::literal::print_quoted_str`]
+    /// because it is not publicly exported there :/
+    #[inline]
+    pub fn print_quoted_str(string: &str, f: &mut impl Write) -> fmt::Result {
+        f.write_char('"')?;
+        for c in string.chars() {
+            match c {
+                '\u{08}' => f.write_str("\\b"),
+                '\t' => f.write_str("\\t"),
+                '\n' => f.write_str("\\n"),
+                '\u{0C}' => f.write_str("\\f"),
+                '\r' => f.write_str("\\r"),
+                '"' => f.write_str("\\\""),
+                '\\' => f.write_str("\\\\"),
+                '\0'..='\u{1F}' | '\u{7F}' => write!(f, "\\u{:04X}", u32::from(c)),
+                _ => f.write_char(c),
+            }?;
+        }
+        f.write_char('"')
+    }
+
+    #[inline]
+    pub fn print_unquoted_str(string: &str, f: &mut impl Write) -> fmt::Result {
+        f.write_str("\"\"\"")?;
+        let mut consecutive_quote_counter = 0;
+        let mut prev_char_opt = None;
+        for c in string.chars() {
+            if let Some(prev_char) = prev_char_opt {
+                f.write_char(prev_char)?;
+            }
+            if c == '"' {
+                consecutive_quote_counter += 1;
+                if consecutive_quote_counter == 3 {
+                    f.write_char('\\')?;
+                    consecutive_quote_counter = 0;
+                }
+            }
+            prev_char_opt = Some(c);
+        }
+        if let Some(prev_char) = prev_char_opt {
+            if prev_char == '"' {
+                f.write_char('\\')?;
+            }
+            f.write_char(prev_char)?;
+        }
+        f.write_str("\"\"\"")
+    }
+
+    fn fmt_string<W: Write>(context: &mut Context<W>, value: &'graph str) -> FmtResult<()> {
+        if value.contains('\n') {
+            Self::print_unquoted_str(value, &mut context.output)?;
+        } else {
+            Self::print_quoted_str(value, &mut context.output)?;
+        }
+        Ok(())
+    }
+
     fn fmt_literal<W: Write>(
         &self,
         context: &mut Context<W>,
         literal: &TLiteralRef<'graph>,
     ) -> FmtResult<()> {
         self.write_indent(context)?;
-        if literal.0.is_plain() {
-            write!(context.output, "{}", literal.0)?;
-        } else {
-            match literal.0.datatype() {
-                xsd::BOOLEAN | xsd::INTEGER => write!(context.output, "{}", literal.0.value())?,
-                xsd::DOUBLE => {
-                    if RE_TURTLE_DOUBLE.is_match(literal.0.value()) {
-                        write!(context.output, "{}", literal.0.value())?;
-                    } else {
-                        if self.options.warn_unsupported_numbers {
-                            tracing::warn!(
-                                "As pointed out in <https://github.com/w3c/rdf-turtle/issues/98>,
+        match literal.0.datatype() {
+            xsd::STRING => Self::fmt_string(context, literal.0.value())?,
+            rdf::LANG_STRING => {
+                Self::fmt_string(context, literal.0.value())?;
+                write!(context.output, "@")?;
+                write!(
+                    context.output,
+                    "{}",
+                    literal
+                        .0
+                        .language()
+                        .expect("langString should always have a language specified")
+                )?;
+            }
+            xsd::BOOLEAN | xsd::INTEGER => write!(context.output, "{}", literal.0.value())?,
+            xsd::DOUBLE => {
+                if RE_TURTLE_DOUBLE.is_match(literal.0.value()) {
+                    write!(context.output, "{}", literal.0.value())?;
+                } else {
+                    if self.options.warn_unsupported_numbers {
+                        tracing::warn!(
+                            "As pointed out in <https://github.com/w3c/rdf-turtle/issues/98>,
 Not all valid xsd:double values can be written as Turtle `DOUBLE`s,
 so we write them as data-typed literals."
-                            );
-                        }
-                        self.fmt_literal_with_type(context, literal)?;
+                        );
                     }
+                    self.fmt_literal_with_type(context, literal)?;
                 }
-                xsd::DECIMAL => {
-                    if literal.0.value().ends_with('.') || !literal.0.value().contains('.') {
-                        if self.options.warn_unsupported_numbers {
-                            tracing::warn!(
-                                "As pointed out in <https://github.com/w3c/rdf-turtle/issues/98>,
+            }
+            xsd::DECIMAL => {
+                if literal.0.value().ends_with('.') || !literal.0.value().contains('.') {
+                    if self.options.warn_unsupported_numbers {
+                        tracing::warn!(
+                            "As pointed out in <https://github.com/w3c/rdf-turtle/issues/98>,
 Not all valid xsd:decimal values can be written as Turtle `DECIMAL`s,
 so we write them as data-typed literals."
-                            );
-                        }
-                        self.fmt_literal_with_type(context, literal)?;
-                    } else {
-                        write!(context.output, "{}", literal.0.value())?;
+                        );
                     }
+                    self.fmt_literal_with_type(context, literal)?;
+                } else {
+                    write!(context.output, "{}", literal.0.value())?;
                 }
-                _dt => self.fmt_literal_with_type(context, literal)?,
             }
+            _dt => self.fmt_literal_with_type(context, literal)?,
         }
         Ok(())
     }
