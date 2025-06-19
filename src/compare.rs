@@ -10,7 +10,10 @@ use crate::{
     vocab::prtr,
 };
 use oxrdf::{vocab::rdf, BlankNode, BlankNodeRef, NamedOrBlankNodeRef, TermRef};
-use std::{cmp::Ordering, collections::hash_map::Entry};
+use std::{
+    cmp::Ordering,
+    collections::{hash_map::Entry, HashMap},
+};
 
 #[must_use]
 pub fn named_nodes<'graph>(
@@ -177,6 +180,33 @@ pub fn triples<'graph>(
 }
 
 #[must_use]
+pub fn extract_topmost_sorting_id_by_types<'graph, S: ::std::hash::BuildHasher>(
+    context: &SortingContext<'graph>,
+    subject_type_order: &HashMap<String, usize, S>,
+    nn: &TNamedNode<'graph>,
+) -> Option<usize> {
+    let mut topmost_sorting_id = None;
+    let types = context
+        .graph
+        .objects_for_subject_predicate(*nn.as_named_node_ref(), rdf::TYPE)
+        .collect::<Vec<_>>();
+    for typ in types {
+        if let TermRef::NamedNode(typ_nn) = typ {
+            if let Some(cur_sorting_id) = subject_type_order.get(typ_nn.as_str()) {
+                if let Some(best) = topmost_sorting_id {
+                    if *cur_sorting_id > best {
+                        continue;
+                    }
+                }
+                topmost_sorting_id = Some(*cur_sorting_id);
+            }
+        }
+    }
+
+    topmost_sorting_id
+}
+
+#[must_use]
 pub fn t_subj<'graph>(
     context: &SortingContext<'graph>,
     a: &TSubject<'graph>,
@@ -186,7 +216,21 @@ pub fn t_subj<'graph>(
         return Ordering::Equal;
     }
     match (a, b) {
-        (TSubject::NamedNode(a), TSubject::NamedNode(b)) => named_nodes(context, a, b),
+        (TSubject::NamedNode(a), TSubject::NamedNode(b)) => {
+            if let Some(subject_type_order) = context.subject_type_order.as_ref() {
+                let a_best_sorting_id =
+                    extract_topmost_sorting_id_by_types(context, subject_type_order, a);
+                let b_best_sorting_id =
+                    extract_topmost_sorting_id_by_types(context, subject_type_order, b);
+                match (a_best_sorting_id, b_best_sorting_id) {
+                    (Some(a), Some(b)) => return a.cmp(&b),
+                    (Some(_a), None) => return Ordering::Less,
+                    (None, Some(_b)) => return Ordering::Greater,
+                    (None, None) => (),
+                }
+            }
+            named_nodes(context, a, b)
+        }
         (
             TSubject::BlankNodeLabel(TBlankNodeRef(a)),
             TSubject::BlankNodeLabel(TBlankNodeRef(b)),
@@ -219,7 +263,23 @@ pub fn pred_ref<'graph>(
     a: &TNamedNode<'graph>,
     b: &TNamedNode<'graph>,
 ) -> Ordering {
-    named_nodes(context, a, b)
+    context.predicate_order.as_ref().map_or_else(
+        || named_nodes(context, a, b),
+        |predicate_order| {
+            match (
+                predicate_order.get(a.as_named_node_ref().as_str()),
+                predicate_order.get(b.as_named_node_ref().as_str()),
+            ) {
+                (Some(a), Some(b)) => {
+                    // println!("XXX In predicate_order pred sorter, comparing {a} and {b}!");
+                    a.cmp(b)
+                }
+                (Some(_a), None) => Ordering::Less,
+                (None, Some(_b)) => Ordering::Greater,
+                (None, None) => named_nodes(context, a, b),
+            }
+        },
+    )
 }
 
 #[must_use]

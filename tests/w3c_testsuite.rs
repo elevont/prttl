@@ -105,6 +105,10 @@ fn options() -> FormatOptions {
         max_nesting: true,
         canonicalize: true,
         warn_unsupported_numbers: true,
+        subject_type_order_preset: None,
+        subject_type_order: None,
+        predicate_order_preset: None,
+        predicate_order: None,
     }
 }
 

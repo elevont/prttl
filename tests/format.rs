@@ -19,6 +19,10 @@ fn fmt_opts_strict(single_object_on_new_line: bool) -> FormatOptions {
         max_nesting: true,
         canonicalize: true,
         warn_unsupported_numbers: true,
+        subject_type_order_preset: None,
+        subject_type_order: None,
+        predicate_order_preset: None,
+        predicate_order: None,
     }
 }
 

@@ -7,7 +7,7 @@ use std::{path::PathBuf, sync::LazyLock};
 use clap::{command, crate_name, value_parser, Arg, ArgAction, Command, ValueHint};
 use cli_utils::logging;
 use const_format::formatcp;
-use prttl::options::FormatOptions;
+use prttl::options::{FormatOptions, SpecialPredicateOrder, SpecialSubjectTypeOrder};
 use thiserror::Error;
 use tracing_subscriber::filter::LevelFilter;
 
@@ -27,8 +27,12 @@ pub const A_L_NO_PRTR_SORTING: &str = "no-prtr-sorting";
 // pub const A_S_NO_PRTR_SORTING: char = 'p';
 pub const A_L_NO_SPARQL_SYNTAX: &str = "no-sparql-syntax";
 // pub const A_S_NO_SPARQL_SYNTAX: char = 's';
+pub const A_L_PREDICATE_ORDER: &str = "pred-order";
+pub const A_L_PREDICATE_ORDER_PRESET: &str = "pred-order-preset";
 pub const A_L_SINGLE_LEAFED_NEW_LINES: &str = "single-leafed-new-lines";
 pub const A_S_SINGLE_LEAFED_NEW_LINES: char = 'n';
+pub const A_L_SUBJECT_TYPE_ORDER: &str = "subj-type-order";
+pub const A_L_SUBJECT_TYPE_ORDER_PRESET: &str = "subj-type-order-preset";
 pub const A_L_QUIET: &str = "quiet";
 pub const A_S_QUIET: char = 'q';
 pub const A_L_VERBOSE: &str = "verbose";
@@ -174,12 +178,77 @@ PREFIX foaf: <http://xmlns.com/foaf/0.1/> \
         .long(A_L_NO_SPARQL_SYNTAX)
 }
 
+fn arg_predicate_order() -> Arg {
+    Arg::new(A_L_PREDICATE_ORDER)
+        .help(
+            "Sets a custom order of predicates to be used for sorting.
+Predicates that match come first; in the provided order.
+Predicates that do not match come afterwards; in alphabetical order.
+
+You may specify predicate names as absolute IRIs or as prefixed names.
+Only direct matches are considered; meaning: No type inference is conducted.",
+        )
+        .long(A_L_PREDICATE_ORDER)
+        .num_args(0..)
+        .value_name("PREDICATE")
+        .value_hint(ValueHint::Other)
+        .action(ArgAction::Append)
+}
+
+fn arg_predicate_order_preset() -> Arg {
+    Arg::new(A_L_PREDICATE_ORDER_PRESET)
+        .help(
+            "Sets a predefined order of predicates to be used for sorting.
+Predicates that match come first; in the provided order.
+Predicates that do not match come afterwards; in alphabetical order.
+
+You may specify predicate names as absolute IRIs or as prefixed names.
+Only direct matches are considered; meaning: No type inference is conducted.",
+        )
+        .long(A_L_PREDICATE_ORDER_PRESET)
+        .value_name("PREDICATE_ORDER_PRESET")
+        .value_parser(value_parser!(SpecialPredicateOrder))
+        .action(ArgAction::Set)
+}
+
 fn arg_single_entry_on_new_line() -> Arg {
     Arg::new(A_L_SINGLE_LEAFED_NEW_LINES)
         .help("Whether to move a single/lone predicate-object pair or object alone onto a new line")
         .action(ArgAction::SetTrue)
         .short(A_S_SINGLE_LEAFED_NEW_LINES)
         .long(A_L_SINGLE_LEAFED_NEW_LINES)
+}
+
+fn arg_subject_type_order() -> Arg {
+    Arg::new(A_L_SUBJECT_TYPE_ORDER)
+        .help(
+            "Sets a custom order of subject types to be used for sorting.
+Subjects with a matching type come first; in the provided order.
+Subjects without any matching type come afterwards; in alphabetical order.
+
+You may specify subject type names as absolute IRIs or as prefixed names.
+Only direct matches are considered; meaning: No type inference is conducted.",
+        )
+        .long(A_L_SUBJECT_TYPE_ORDER)
+        .num_args(0..)
+        .value_name("SUBJECT_TYPE")
+        .value_hint(ValueHint::Other)
+        .action(ArgAction::Append)
+}
+
+fn arg_subject_type_order_preset() -> Arg {
+    Arg::new(A_L_SUBJECT_TYPE_ORDER_PRESET)
+        .help(
+            "Sets a predefined order of subject types to be used for sorting.
+Subjects with a matching type come first; in the provided order.
+Subjects without any matching type come afterwards; in alphabetical order.
+
+Only direct matches are considered; meaning: No type inference is conducted.",
+        )
+        .long(A_L_SUBJECT_TYPE_ORDER_PRESET)
+        .value_name("SUBJECT_TYPE_ORDER_PRESET")
+        .value_parser(value_parser!(SpecialSubjectTypeOrder))
+        .action(ArgAction::Set)
 }
 
 fn arg_quiet() -> Arg {
@@ -252,7 +321,11 @@ More about this: \
         // .arg(arg_output())
         .arg(arg_no_prtr_sorting())
         .arg(arg_no_sparql_syntax())
+        .arg(arg_predicate_order())
+        .arg(arg_predicate_order_preset())
         .arg(arg_single_entry_on_new_line())
+        .arg(arg_subject_type_order())
+        .arg(arg_subject_type_order_preset())
         .arg(arg_quiet())
         .arg(arg_verbose())
         .arg(arg_version())
@@ -373,6 +446,19 @@ pub fn init() -> Result<(FormatOptions, Vec<PathBuf>), InitError> {
     let single_leafed_new_lines = args.get_flag(A_L_SINGLE_LEAFED_NEW_LINES);
     let warn_unsupported_numbers = true;
 
+    let predicate_order: Option<Vec<String>> = args
+        .get_many::<String>(A_L_PREDICATE_ORDER)
+        .map(|vals| vals.cloned().collect());
+    let predicate_order_preset: Option<SpecialPredicateOrder> = args
+        .get_one::<SpecialPredicateOrder>(A_L_PREDICATE_ORDER_PRESET)
+        .copied();
+    let subject_type_order: Option<Vec<String>> = args
+        .get_many::<String>(A_L_SUBJECT_TYPE_ORDER)
+        .map(|vals| vals.cloned().collect());
+    let subject_type_order_preset: Option<SpecialSubjectTypeOrder> = args
+        .get_one::<SpecialSubjectTypeOrder>(A_L_SUBJECT_TYPE_ORDER_PRESET)
+        .copied();
+
     let indentation = " ".repeat(indentation_spaces);
     let src: Vec<PathBuf> = args
         .get_many::<PathBuf>(A_L_SRC)
@@ -390,6 +476,10 @@ pub fn init() -> Result<(FormatOptions, Vec<PathBuf>), InitError> {
             max_nesting,
             canonicalize,
             warn_unsupported_numbers,
+            subject_type_order_preset,
+            subject_type_order,
+            predicate_order_preset,
+            predicate_order,
         },
         src,
     ))

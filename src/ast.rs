@@ -750,6 +750,10 @@ pub struct SortingContext<'sorting> {
     pub graph: &'sorting Graph,
     /// A cache for blank node sorting ids, for performance reasons.
     pub bn_sorting_ids: Rc<RefCell<HashMap<BlankNodeRef<'sorting>, Option<u32>>>>,
+    // See [`FormatOptions::predicate_order``].
+    pub predicate_order: Option<HashMap<String, usize>>,
+    // See [`FormatOptions::subject_type_order``].
+    pub subject_type_order: Option<HashMap<String, usize>>,
 }
 
 #[derive(Debug)]
