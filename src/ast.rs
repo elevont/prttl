@@ -29,12 +29,12 @@ static T_RDF_LIST: LazyLock<TermRef> = LazyLock::new(|| TermRef::NamedNode(rdf::
 
 /// This is a context that is passed to the creation of AST nodes.
 /// We essentially only do this to have less arguments for the functions.
-struct CreationContext<'graph, 'us> {
+struct CreationContext<'graph, 'us, S: ::std::hash::BuildHasher> {
     pub input: &'graph Input,
     pub g_main: &'graph Graph,
     pub non_empty_valid_cols: &'us HashMap<BlankNodeRef<'graph>, Vec<TermRef<'graph>>>,
     pub nestable_blank_nodes: &'us HashSet<BlankNodeRef<'graph>>,
-    pub unreferenced_blank_nodes: &'us HashSet<BlankNodeRef<'graph>>,
+    pub unreferenced_blank_nodes: &'us HashSet<BlankNodeRef<'graph>, S>,
     pub col_involved_triples: &'us Vec<TripleRef<'graph>>,
 }
 
@@ -69,7 +69,10 @@ pub enum TSubject<'graph> {
 }
 
 impl<'us, 'graph> TSubject<'graph> {
-    fn from(ctx: &CreationContext<'graph, 'us>, other: NamedOrBlankNodeRef<'graph>) -> Self {
+    fn from<S: ::std::hash::BuildHasher>(
+        ctx: &CreationContext<'graph, 'us, S>,
+        other: NamedOrBlankNodeRef<'graph>,
+    ) -> Self {
         match other {
             NamedOrBlankNodeRef::NamedNode(named_node_ref) => {
                 Self::NamedNode(TNamedNode::from(ctx.input, named_node_ref))
@@ -137,7 +140,10 @@ pub struct TSubjectCont<'graph> {
 }
 
 impl<'us, 'graph> TSubjectCont<'graph> {
-    fn from(ctx: &CreationContext<'graph, 'us>, other: NamedOrBlankNodeRef<'graph>) -> Self {
+    fn from<S: ::std::hash::BuildHasher>(
+        ctx: &CreationContext<'graph, 'us, S>,
+        other: NamedOrBlankNodeRef<'graph>,
+    ) -> Self {
         Self {
             subject: TSubject::from(ctx, other),
             predicates: Vec::new(),
@@ -370,7 +376,10 @@ pub enum TObject<'graph> {
 }
 
 impl<'us, 'graph> TObject<'graph> {
-    fn from(ctx: &CreationContext<'graph, 'us>, other: TermRef<'graph>) -> Self {
+    fn from<S: ::std::hash::BuildHasher>(
+        ctx: &CreationContext<'graph, 'us, S>,
+        other: TermRef<'graph>,
+    ) -> Self {
         match other {
             TermRef::NamedNode(named_node_ref) => {
                 if named_node_ref == rdf::NIL {
@@ -485,7 +494,10 @@ pub struct TTriple<'graph>(
 );
 
 impl<'us, 'graph> TTriple<'graph> {
-    fn from(ctx: &CreationContext<'graph, 'us>, other: &TripleRef<'graph>) -> Self {
+    fn from<S: ::std::hash::BuildHasher>(
+        ctx: &CreationContext<'graph, 'us, S>,
+        other: &TripleRef<'graph>,
+    ) -> Self {
         Self(
             TSubject::from(ctx, other.subject),
             TPredicate::from(ctx.input, other.predicate),
@@ -513,8 +525,8 @@ enum TBlankNodeOrCollection<'graph> {
     Collection(TCollection<'graph>),
 }
 
-fn blank_node_label_or_collection<'graph>(
-    ctx: &CreationContext<'graph, '_>,
+fn blank_node_label_or_collection<'graph, S: ::std::hash::BuildHasher>(
+    ctx: &CreationContext<'graph, '_, S>,
     bn: BlankNodeRef<'graph>,
 ) -> Result<Option<TBlankNodeOrCollection<'graph>>, Infallible> {
     Ok(if let Some(col) = ctx.non_empty_valid_cols.get(&bn) {
@@ -540,9 +552,9 @@ trait PredicatesStore<'graph> {
     where
         'graph: 'us;
 
-    fn create_graph_entry<'us>(
+    fn create_graph_entry<'us, S: ::std::hash::BuildHasher>(
         &'us mut self,
-        ctx: &CreationContext<'graph, 'us>,
+        ctx: &CreationContext<'graph, 'us, S>,
         level_triples: impl Iterator<Item = TripleRef<'graph>>,
     ) -> Result<(), Infallible>
     where
@@ -917,9 +929,9 @@ pub fn subjects(graph: &Graph) -> impl Iterator<Item = NamedOrBlankNodeRef<'_>> 
 /// # Errors
 ///
 /// Never fails (Infallible).
-pub fn construct_tree<'tree, 'graph>(
+pub fn construct_tree<'tree, 'graph, S: ::std::hash::BuildHasher>(
     tree_root: &'tree mut TRoot<'graph>,
-    unreferenced_blank_nodes: &'tree mut HashSet<BlankNodeRef<'graph>>,
+    unreferenced_blank_nodes: &'tree mut HashSet<BlankNodeRef<'graph>, S>,
     input: &'graph Input,
 ) -> Result<(), Infallible>
 where
