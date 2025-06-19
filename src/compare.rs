@@ -10,7 +10,7 @@ use crate::{
     vocab::prtr,
 };
 use oxrdf::{vocab::rdf, BlankNode, BlankNodeRef, NamedOrBlankNodeRef, TermRef};
-use std::cmp::Ordering;
+use std::{cmp::Ordering, collections::hash_map::Entry};
 
 #[must_use]
 pub fn named_nodes<'graph>(
@@ -52,8 +52,9 @@ fn fetch_prtr_sorting_id<'graph>(
     context: &SortingContext<'graph>,
     bn: &BlankNodeRef<'graph>,
 ) -> Option<u32> {
-    context.bn_sorting_ids.borrow().get(bn).map_or_else(
-        || {
+    match context.bn_sorting_ids.borrow_mut().entry(*bn) {
+        Entry::Occupied(entry) => *entry.get(),
+        Entry::Vacant(entry) => {
             let sorting_id_opt = context
                 .graph
                 .object_for_subject_predicate(
@@ -78,14 +79,10 @@ fn fetch_prtr_sorting_id<'graph>(
                     }
                 });
 
-            context
-                .bn_sorting_ids
-                .borrow_mut()
-                .insert(*bn, sorting_id_opt);
+            entry.insert(sorting_id_opt);
             sorting_id_opt
-        },
-        |id_opt| *id_opt,
-    )
+        }
+    }
 }
 
 #[must_use]
