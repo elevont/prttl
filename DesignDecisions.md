@@ -5,6 +5,12 @@ breaks: false
 
 ## Output Structure Decisions
 
+<!--
+SPDX-FileCopyrightText: 2025 Robin Vobruba <hoijui.quaero@gmail.com>
+
+SPDX-License-Identifier: Apache-2.0
+-->
+
 In this document, we go through a few decisions
 that need to be taken by a Turtle pretty-printer,
 either for the fixed format they provide,
