@@ -223,7 +223,12 @@ pub fn t_subj<'graph>(
                 let b_best_sorting_id =
                     extract_topmost_sorting_id_by_types(context, subject_type_order, b);
                 match (a_best_sorting_id, b_best_sorting_id) {
-                    (Some(a), Some(b)) => return a.cmp(&b),
+                    (Some(a), Some(b)) => {
+                        let special_order = a.cmp(&b);
+                        if special_order != Ordering::Equal {
+                            return special_order;
+                        }
+                    }
                     (Some(_a), None) => return Ordering::Less,
                     (None, Some(_b)) => return Ordering::Greater,
                     (None, None) => (),
