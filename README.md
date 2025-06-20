@@ -65,6 +65,95 @@ It is also possible to check a complete directory (and its subdirectories):
 prttl MY_DIR
 ```
 
+---
+
+All the options:
+
+```bash
+$ prttl
+Takes RDF data as input (commonly a Turtle file), and generates diff optimized RDF/Turtle, using a lot of new-lines. One peculiarity of this tool is, that it removes (Turtle-syntax) comments. We do this, because we believe that all comments should rather be encoded into triples, and we celebrate this in our own data, specifically our ontologies. More about this: <https://codeberg.org/elevont/cmt-ont>
+
+Usage: prttl [OPTIONS] <FILE_OR_DIR>...
+
+Arguments:
+  <FILE_OR_DIR>...
+          Source RDF file(s) or director(y|ies) containing Turtle files to format
+
+Options:
+      --canonicalize
+          Whether to canonicalize the input before formatting. This refers to <https://www.w3.org/TR/rdf-canon/>, and effectively just label the blank nodes in a uniform way.
+
+  -c, --check
+          Do not edit the file but only check if it already applies this tools format
+
+  -f, --force
+          Forces overwriting of the output file, if it already exists, which includes the case of the input and output file being equal
+
+  -l, --label-all-blank-nodes
+          Whether to use labels for all blank nodes, or rather maximize nesting of them. NOTE That blank nodes referenced in more then one place can never be nested.
+
+  -i, --indentation <NUM>
+          Number of spaces per level of indentation
+
+          [default: 2]
+
+      --no-prtr-sorting
+          Whether to disable sorting of blank nodes using their `prtr:sortingId` value, if any. [`prtr`](https://codeberg.org/elevont/prtr) is an ontology concerned with [RDF Pretty Printing](https://www.w3.org/DesignIssues/Pretty.html).
+
+      --no-sparql-syntax
+          Whether to use SPARQL-ish syntax for base and prefix, or the traditional Turtle syntax. - SPARQL-ish: ```turtle BASE <http://example.com/> PREFIX foaf: <http://xmlns.com/foaf/0.1/> ``` - Traditional Turtle: ```turtle @base <http://example.com/> . @prefix foaf: <http://xmlns.com/foaf/0.1/> . ```
+
+      --pred-order [<PREDICATE>...]
+          Sets a custom order of predicates to be used for sorting.
+          Predicates that match come first; in the provided order.
+          Predicates that do not match come afterwards; in alphabetical order.
+
+          You may specify predicate names as absolute IRIs or as prefixed names.
+          Only direct matches are considered; meaning: No type inference is conducted.
+
+      --pred-order-preset <PREDICATE_ORDER_PRESET>
+          Sets a predefined order of predicates to be used for sorting.
+          Predicates that match come first; in the provided order.
+          Predicates that do not match come afterwards; in alphabetical order.
+
+          You may specify predicate names as absolute IRIs or as prefixed names.
+          Only direct matches are considered; meaning: No type inference is conducted.
+
+          [possible values: owl, skos, shacl, shex, rdf]
+
+  -n, --single-leafed-new-lines
+          Whether to move a single/lone predicate-object pair or object alone onto a new line
+
+      --subj-type-order [<SUBJECT_TYPE>...]
+          Sets a custom order of subject types to be used for sorting.
+          Subjects with a matching type come first; in the provided order.
+          Subjects without any matching type come afterwards; in alphabetical order.
+
+          You may specify subject type names as absolute IRIs or as prefixed names.
+          Only direct matches are considered; meaning: No type inference is conducted.
+
+      --subj-type-order-preset <SUBJECT_TYPE_ORDER_PRESET>
+          Sets a predefined order of subject types to be used for sorting.
+          Subjects with a matching type come first; in the provided order.
+          Subjects without any matching type come afterwards; in alphabetical order.
+
+          Only direct matches are considered; meaning: No type inference is conducted.
+
+          [possible values: owl, skos, shacl, shex, rdf]
+
+  -q, --quiet
+          Minimize or suppress output to stdout, and only shows log output on stderr.
+
+  -v, --verbose
+          more verbose output (useful for debugging)
+
+  -V, --version
+          Print version information and exit. May be combined with -q,--quiet, to really only output the version string.
+
+  -h, --help
+          Print help (see a summary with '-h')
+```
+
 ## Format
 
 `prttl` is in development and its output format is not stable yet.
