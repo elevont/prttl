@@ -106,6 +106,5 @@ prttl MY_DIR
   when it keeps the lexical representation unchanged.
 - Uses `a` for `rdf:type` where possible.
 
-... and more.
-A much more detailed account and reasoning behind what this tool does,
+A much more detailed account and reasoning behind what this tool does
 can be found in [DesignDecisions.md](DesignDecisions.md).
