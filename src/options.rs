@@ -10,8 +10,8 @@ static CLS_ORDER_OWL: LazyLock<Vec<&'static str>> = LazyLock::new(|| {
     vec![
         "owl:Ontology",
         "owl:Class",
-        "owl:ObjectProperties",
-        "owl:DatatypeProperties",
+        "owl:ObjectProperty",
+        "owl:DatatypeProperty",
         "owl:NamedIndividual",
         // "owl:Thing",
         // "owl:AnnotationProperty",
