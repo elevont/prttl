@@ -161,7 +161,9 @@ impl Part for TSubjectCont<'_> {
     }
 
     fn is_single_leafed(&self) -> bool {
-        self.predicates.len() == 1 && self.predicates.first().unwrap().is_single_leafed()
+        self.subject.is_single_leafed()
+            && self.predicates.len() == 1
+            && self.predicates.first().unwrap().is_single_leafed()
     }
 }
 
