@@ -44,7 +44,7 @@ fn test_format(
     if output != expected {
         std::fs::write(debug_file_abs, &output).unwrap();
         eprintln!(
-            "Debug out file written to:\n{}\n\nCompare with:\nmeld tests/{} tests/{}",
+            "Debug out file written to:\n{}\n\nCompare with:\nmeld tests/{} tests/{} &",
             debug_file.display(),
             expected_file.display(),
             debug_file.display()
