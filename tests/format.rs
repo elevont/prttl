@@ -17,7 +17,7 @@ fn fmt_opts_strict(single_object_on_new_line: bool) -> FormatOptions {
         check: false,
         sparql_syntax: false,
         max_nesting: true,
-        canonicalize: true,
+        canonicalize: false,
         warn_unsupported_numbers: true,
         subject_type_order_preset: None,
         subject_type_order: None,
@@ -80,6 +80,7 @@ macro_rules! test_auto {
                 if $single_object_on_new_line {
                     fmt_options.single_leafed_new_lines = true;
                 }
+                fmt_options.canonicalize = false;
                 fmt_options
             },
         )
