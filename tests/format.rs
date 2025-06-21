@@ -137,3 +137,12 @@ fn test_blank_nodes_prtr_strict() -> Result<(), Error> {
         false
     )
 }
+
+#[test]
+fn test_blank_nodes_prtr_strict_stable() -> Result<(), Error> {
+    test_auto!(
+        "data/output/pretty_printing/blank_nodes_prtr.ttl",
+        true,
+        false
+    )
+}
