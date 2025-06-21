@@ -147,3 +147,66 @@ fn test_blank_nodes_prtr_strict_stable() -> Result<(), Error> {
         false
     )
 }
+
+#[test]
+fn test_tbl_diff() -> Result<(), Error> {
+    test_auto!(
+        "data/input/pretty_printing/tbl-diff.ttl",
+        "data/output/pretty_printing/tbl-diff.ttl",
+        true,
+        false
+    )
+}
+
+#[test]
+fn test_all() -> Result<(), Error> {
+    test_auto!(
+        "data/input/pretty_printing/all.ttl",
+        "data/output/pretty_printing/all.ttl",
+        true,
+        false
+    )
+}
+
+// #[test]
+// fn test_all_stable() -> Result<(), Error> {
+//     test_auto!(
+//         "data/output/pretty_printing/all.ttl",
+//         true,
+//         false
+//     )
+// }
+
+// #[test]
+// fn test_all_strict() -> Result<(), Error> {
+//     test_auto!(
+//         "data/input/pretty_printing/all.ttl",
+//         "data/output/pretty_printing/all.strict.ttl",
+//         true,
+//         true
+//     )
+// }
+
+// #[test]
+// fn test_all_strict_stable() -> Result<(), Error> {
+//     test_auto!(
+//         "data/output/pretty_printing/all.strict.ttl",
+//         true,
+//         true
+//     )
+// }
+
+#[test]
+fn test_all_prtr() -> Result<(), Error> {
+    test_auto!(
+        "data/input/pretty_printing/all_prtr.ttl",
+        "data/output/pretty_printing/all_prtr.ttl",
+        true,
+        false
+    )
+}
+
+#[test]
+fn test_all_prtr_stable() -> Result<(), Error> {
+    test_auto!("data/output/pretty_printing/all_prtr.ttl", true, false)
+}
