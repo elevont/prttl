@@ -889,8 +889,20 @@ where
         unreferenced_blank_nodes.insert(*subj_bn);
     }
     let duplicate_obj_bns = extract_duplicates(&object_bns);
-    subject_bns.retain(|bn| object_bns.contains(bn) && !duplicate_obj_bns.contains(bn));
-    subject_bns.into_iter().collect()
+
+    let mut nestable_bns = vec![];
+    for bn in &subject_bns {
+        if object_bns.contains(bn) && !duplicate_obj_bns.contains(bn) {
+            nestable_bns.push(*bn);
+        }
+    }
+    for bn in &object_bns {
+        if !subject_bns.contains(bn) && !duplicate_obj_bns.contains(bn) {
+            nestable_bns.push(*bn);
+        }
+    }
+
+    nestable_bns.into_iter().collect()
 }
 
 fn extract_non_empty_collections<'graph>(
