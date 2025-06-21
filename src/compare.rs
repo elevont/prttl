@@ -22,7 +22,14 @@ pub fn named_nodes<'graph>(
     b: &TNamedNode<'graph>,
 ) -> Ordering {
     if a == b {
-        Ordering::Equal
+        return Ordering::Equal;
+    }
+
+    let a_type_num: u8 = a.into();
+    let b_type_num: u8 = b.into();
+    let type_cmp = a_type_num.cmp(&b_type_num);
+    if type_cmp != Ordering::Equal {
+        type_cmp
     } else {
         a.cmp(b)
     }

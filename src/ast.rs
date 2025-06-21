@@ -223,6 +223,16 @@ impl Part for TNamedNode<'_> {
     }
 }
 
+impl From<&TNamedNode<'_>> for u8 {
+    fn from(value: &TNamedNode<'_>) -> Self {
+        match value {
+            TNamedNode::Prefixed(..) => 0,
+            TNamedNode::Based(..) => 1,
+            TNamedNode::Plain(..) => 2,
+        }
+    }
+}
+
 impl Ord for TNamedNode<'_> {
     fn cmp(&self, other: &Self) -> Ordering {
         match (self, other) {
@@ -446,10 +456,10 @@ impl From<&TObject<'_>> for u8 {
     fn from(value: &TObject<'_>) -> Self {
         match value {
             TObject::NamedNode(_) => 0,
-            TObject::BlankNodeLabel(_) => 5,
-            TObject::BlankNodeAnonymous(_) => 4,
-            TObject::Collection(_) => 3,
-            TObject::Literal(_) => 2,
+            TObject::BlankNodeLabel(_) => 4,
+            TObject::BlankNodeAnonymous(_) => 3,
+            TObject::Collection(_) => 2,
+            TObject::Literal(_) => 5,
             TObject::Triple(_) => 1,
         }
     }
