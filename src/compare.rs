@@ -325,10 +325,7 @@ pub fn literals<'graph>(
     a: &TLiteralRef<'graph>,
     b: &TLiteralRef<'graph>,
 ) -> Ordering {
-    let cmp_value = a.0.value().cmp(b.0.value());
-    if cmp_value != Ordering::Equal {
-        return cmp_value;
-    }
+    // 1. by *nice* data-type
     let nice_dt_cmp = match (a.1.as_ref(), b.1.as_ref()) {
         (Some(a), Some(b)) => named_nodes(context, a, b),
         (Some(_a), None) => Ordering::Less,
@@ -338,14 +335,24 @@ pub fn literals<'graph>(
     if nice_dt_cmp != Ordering::Equal {
         return nice_dt_cmp;
     }
+
+    // 2. by regular data-type
     let cmp_datatype = a.0.datatype().cmp(&b.0.datatype());
     if cmp_datatype != Ordering::Equal {
         return cmp_datatype;
     }
-    match (a.0.language(), b.0.language()) {
+
+    // 3. by language
+    let language_cmp = match (a.0.language(), b.0.language()) {
         (Some(a), Some(b)) => a.cmp(b),
         (Some(_a), None) => Ordering::Less,
         (None, Some(_b)) => Ordering::Greater,
         (None, None) => Ordering::Equal,
+    };
+    if language_cmp != Ordering::Equal {
+        return cmp_datatype;
     }
+
+    // 4. by value
+    a.0.value().cmp(b.0.value())
 }
