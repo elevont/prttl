@@ -28,10 +28,10 @@ pub fn named_nodes<'graph>(
     let a_type_num: u8 = a.into();
     let b_type_num: u8 = b.into();
     let type_cmp = a_type_num.cmp(&b_type_num);
-    if type_cmp != Ordering::Equal {
-        type_cmp
-    } else {
+    if type_cmp == Ordering::Equal {
         a.cmp(b)
+    } else {
+        type_cmp
     }
 }
 
