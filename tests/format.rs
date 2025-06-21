@@ -2,7 +2,7 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
-use std::rc::Rc;
+use std::{fs, path::Path, rc::Rc};
 
 #[cfg(test)]
 use pretty_assertions::assert_eq;
@@ -32,41 +32,108 @@ fn format_turtle(original: &str, options: FormatOptions) -> Result<String, Error
     format(&input, options)
 }
 
-#[test]
-fn test_format() -> Result<(), Error> {
-    let input = include_str!("data/input/pretty_printing/simple.ttl");
-    let expected = include_str!("data/output/pretty_printing/simple.ttl");
-    assert_eq!(format_turtle(input, FormatOptions::default())?, expected);
+fn test_format(
+    input: &str,
+    expected: &str,
+    debug_file: &Path,
+    expected_file: &Path,
+    fmt_options: FormatOptions,
+) -> Result<(), Error> {
+    let output = format_turtle(input, fmt_options)?;
+    let debug_file_abs = std::path::absolute(format!("tests/{}", debug_file.display())).unwrap();
+    if output != expected {
+        std::fs::write(debug_file_abs, &output).unwrap();
+        eprintln!(
+            "Debug out file written to:\n{}\n\nCompare with:\nmeld tests/{} tests/{}",
+            debug_file.display(),
+            expected_file.display(),
+            debug_file.display()
+        );
+    } else if fs::exists(&debug_file_abs).unwrap() {
+        std::fs::remove_file(debug_file_abs).unwrap();
+    }
+    assert_eq!(output, expected);
     Ok(())
 }
 
-#[test]
-fn test_stable() -> Result<(), Error> {
-    let file = include_str!("data/output/pretty_printing/simple.ttl");
-    assert_eq!(format_turtle(file, FormatOptions::default())?, file);
-    Ok(())
+macro_rules! test_auto {
+    ($input:literal, $expected:literal, $stable:literal, $strict:literal, $single_object_on_new_line:literal) => {
+        test_format(
+            include_str!($input),
+            include_str!($expected),
+            Path::new(&format!(
+                "{}{}{}{}.actual_output.ttl",
+                $expected,
+                if $stable { ".stable" } else { "" },
+                if $strict { ".strict" } else { "" },
+                if $single_object_on_new_line {
+                    ".single_object_on_new_line"
+                } else {
+                    ""
+                }
+            )),
+            Path::new($expected),
+            if $strict {
+                fmt_opts_strict($single_object_on_new_line)
+            } else {
+                let mut fmt_options = FormatOptions::default();
+                if $single_object_on_new_line {
+                    fmt_options.single_leafed_new_lines = true;
+                }
+                fmt_options
+            },
+        )
+    };
+    ($input:literal, $expected:literal, $strict:literal, $single_object_on_new_line:literal) => {
+        test_auto!(
+            $input,
+            $expected,
+            false,
+            $strict,
+            $single_object_on_new_line
+        )
+    };
+    ($input:literal, $strict:literal, $single_object_on_new_line:literal) => {
+        test_auto!($input, $input, true, $strict, $single_object_on_new_line)
+    };
 }
 
 #[test]
-fn test_format_strict() -> Result<(), Error> {
-    let input = include_str!("data/input/pretty_printing/simple.ttl");
-    let expected = include_str!("data/output/pretty_printing/simple.strict.ttl");
-    assert_eq!(format_turtle(input, fmt_opts_strict(true))?, expected);
-    Ok(())
+fn test_simple() -> Result<(), Error> {
+    test_auto!(
+        "data/input/pretty_printing/simple.ttl",
+        "data/output/pretty_printing/simple.ttl",
+        false,
+        false
+    )
 }
 
 #[test]
-fn test_stable_default_inverted() -> Result<(), Error> {
-    let file = include_str!("data/output/pretty_printing/simple.strict.ttl");
-    assert_eq!(format_turtle(file, fmt_opts_strict(true))?, file);
-    Ok(())
+fn test_simple_stable() -> Result<(), Error> {
+    test_auto!("data/output/pretty_printing/simple.ttl", false, false)
 }
 
 #[test]
-fn test_blank_nodes_prtr() -> Result<(), Error> {
-    let input = include_str!("data/input/pretty_printing/blank_nodes_prtr.ttl");
-    let expected = include_str!("data/output/pretty_printing/blank_nodes_prtr.ttl");
-    // assert_eq!(format_turtle(input, FormatOptions::default())?, expected);
-    assert_eq!(format_turtle(input, fmt_opts_strict(false))?, expected);
-    Ok(())
+fn test_simple_strict() -> Result<(), Error> {
+    test_auto!(
+        "data/input/pretty_printing/simple.ttl",
+        "data/output/pretty_printing/simple.ttl",
+        true,
+        true
+    )
+}
+
+#[test]
+fn test_simple_strict_stable() -> Result<(), Error> {
+    test_auto!("data/output/pretty_printing/simple.ttl", true, true)
+}
+
+#[test]
+fn test_blank_nodes_prtr_strict() -> Result<(), Error> {
+    test_auto!(
+        "data/input/pretty_printing/blank_nodes_prtr.ttl",
+        "data/output/pretty_printing/blank_nodes_prtr.ttl",
+        true,
+        false
+    )
 }
