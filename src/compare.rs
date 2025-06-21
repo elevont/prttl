@@ -23,10 +23,6 @@ pub fn named_nodes<'graph>(
 ) -> Ordering {
     if a == b {
         Ordering::Equal
-    } else if *a.as_named_node_ref() == rdf::TYPE {
-        Ordering::Less
-    } else if *b.as_named_node_ref() == rdf::TYPE {
-        Ordering::Greater
     } else {
         a.cmp(b)
     }
@@ -180,7 +176,7 @@ pub fn triples<'graph>(
 }
 
 #[must_use]
-pub fn extract_topmost_sorting_id_by_types<'graph, S: ::std::hash::BuildHasher>(
+fn extract_topmost_sorting_id_by_types<'graph, S: ::std::hash::BuildHasher>(
     context: &SortingContext<'graph>,
     subject_type_order: &HashMap<String, usize, S>,
     nn: &TNamedNode<'graph>,
@@ -268,23 +264,15 @@ pub fn pred_ref<'graph>(
     a: &TNamedNode<'graph>,
     b: &TNamedNode<'graph>,
 ) -> Ordering {
-    context.predicate_order.as_ref().map_or_else(
-        || named_nodes(context, a, b),
-        |predicate_order| {
-            match (
-                predicate_order.get(a.as_named_node_ref().as_str()),
-                predicate_order.get(b.as_named_node_ref().as_str()),
-            ) {
-                (Some(a), Some(b)) => {
-                    // println!("XXX In predicate_order pred sorter, comparing {a} and {b}!");
-                    a.cmp(b)
-                }
-                (Some(_a), None) => Ordering::Less,
-                (None, Some(_b)) => Ordering::Greater,
-                (None, None) => named_nodes(context, a, b),
-            }
-        },
-    )
+    match (
+        context.predicate_order.get(a.as_named_node_ref().as_str()),
+        context.predicate_order.get(b.as_named_node_ref().as_str()),
+    ) {
+        (Some(a), Some(b)) => a.cmp(b),
+        (Some(_a), None) => Ordering::Less,
+        (None, Some(_b)) => Ordering::Greater,
+        (None, None) => named_nodes(context, a, b),
+    }
 }
 
 #[must_use]

@@ -91,20 +91,20 @@ impl<'graph> TurtleFormatter<'graph> {
             options: Rc::<_>::clone(&self.options),
             graph: &self.input.graph,
             bn_sorting_ids: Rc::new(RefCell::new(HashMap::new())),
-            predicate_order: self.options.predicate_order().map(|names| {
-                names
-                    .into_iter()
-                    .enumerate()
-                    .map(|(idx, val)| {
-                        let absolute_iri =
-                            Self::try_named_node_from_iri_or_prefixed_name(self.input, &val)
-                                .unwrap_or_else(|_| panic!("Failed to parse '{val}' as named node"))
-                                .as_str()
-                                .to_string();
-                        (absolute_iri, idx)
-                    })
-                    .collect()
-            }),
+            predicate_order: self
+                .options
+                .predicate_order()
+                .into_iter()
+                .enumerate()
+                .map(|(idx, val)| {
+                    let absolute_iri =
+                        Self::try_named_node_from_iri_or_prefixed_name(self.input, &val)
+                            .unwrap_or_else(|_| panic!("Failed to parse '{val}' as named node"))
+                            .as_str()
+                            .to_string();
+                    (absolute_iri, idx)
+                })
+                .collect(),
             subject_type_order: self.options.subject_type_order().map(|names| {
                 names
                     .into_iter()

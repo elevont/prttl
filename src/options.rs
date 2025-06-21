@@ -498,11 +498,14 @@ impl FormatOptions {
     }
 
     #[must_use]
-    pub fn predicate_order(&self) -> Option<Vec<String>> {
-        self.predicate_order.clone().or_else(|| {
-            self.predicate_order_preset
-                .as_ref()
-                .map(|variant| variant.as_list().iter().map(ToString::to_string).collect())
-        })
+    pub fn predicate_order(&self) -> Vec<String> {
+        self.predicate_order
+            .clone()
+            .or_else(|| {
+                self.predicate_order_preset
+                    .as_ref()
+                    .map(|variant| variant.as_list().iter().map(ToString::to_string).collect())
+            })
+            .unwrap_or_else(|| vec!["rdf:type".to_string()])
     }
 }
