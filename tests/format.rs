@@ -40,11 +40,12 @@ fn test_format(
     fmt_options: FormatOptions,
 ) -> Result<(), Error> {
     let output = format_turtle(input, fmt_options)?;
-    let debug_file_abs = std::path::absolute(format!("tests/{}", debug_file.display())).unwrap();
+    let debug_file_abs = std::path::absolute(format!("target/tests/{}", debug_file.display())).unwrap();
+    std::fs::create_dir_all(debug_file_abs.parent().unwrap()).unwrap();
     if output != expected {
         std::fs::write(debug_file_abs, &output).unwrap();
         eprintln!(
-            "Debug out file written to:\n{}\n\nCompare with:\nmeld tests/{} tests/{} &",
+            "Debug out file written to:\n{}\n\nCompare with:\nmeld tests/{} target/tests/{} &",
             debug_file.display(),
             expected_file.display(),
             debug_file.display()
