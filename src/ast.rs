@@ -75,7 +75,11 @@ impl<'us, 'graph> TSubject<'graph> {
     ) -> Self {
         match other {
             NamedOrBlankNodeRef::NamedNode(named_node_ref) => {
-                Self::NamedNode(TNamedNode::from(ctx.input, named_node_ref))
+                if named_node_ref == rdf::NIL {
+                    Self::Collection(TCollection::Empty)
+                } else {
+                    Self::NamedNode(TNamedNode::from(ctx.input, named_node_ref))
+                }
             }
             NamedOrBlankNodeRef::BlankNode(blank_node_ref) => {
                 match blank_node_label_or_collection(ctx, blank_node_ref).expect("Infallible") {
