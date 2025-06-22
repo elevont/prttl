@@ -467,7 +467,9 @@ impl<'graph> TurtleFormatter<'graph> {
     }
 
     fn fmt_string<W: Write>(context: &mut Context<W>, value: &'graph str) -> FmtResult<()> {
-        if value.contains('\n') {
+        // NOTE We need to use quoted for strings containing "\n\r",
+        //      because they can not be represented in triple-quoted strings.
+        if value.contains('\n') && !value.contains("\n\r") {
             Self::print_unquoted_str(value, &mut context.output)?;
         } else {
             Self::print_quoted_str(value, &mut context.output)?;
