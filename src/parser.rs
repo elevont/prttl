@@ -7,7 +7,7 @@ use std::{
     rc::Rc,
 };
 
-use oxrdf::{graph::CanonicalizationAlgorithm, Graph};
+use oxrdf::{Graph, TermRef};
 use oxttl::TurtleParser;
 
 use thiserror::Error;
@@ -16,6 +16,15 @@ use crate::{constants::SUBSTITUTE_BASE, input::Input, options::FormatOptions};
 
 #[derive(Error, Debug)]
 pub enum Error {
+    #[error(
+        "We do not support redefinition of prefixes,
+which is the case with '{0}'.
+
+For more information, see:
+<https://codeberg.org/elevont/prttl/src/branch/main/DesignDecisions.md#prefix-redefinition>"
+    )]
+    Canonicalization(#[from] rdf_canon::CanonicalizationError),
+
     #[error(
         "We do not support redefinition of prefixes,
 which is the case with '{0}'.
@@ -172,7 +181,16 @@ because the 'force' option was specified!"
     }
     tracing::debug!("Low level parsing went ok!");
     if options.canonicalize {
-        graph.canonicalize(CanonicalizationAlgorithm::Unstable);
+        let bn_mapping = rdf_canon::issue_graph(&graph)?;
+        graph = rdf_canon::relabel_graph(&graph, &bn_mapping)?;
+        subjects_in_order = subjects_in_order
+            .iter()
+            .map(|subj| rdf_canon::api::relabel_subject(subj.as_ref(), &bn_mapping))
+            .collect::<Result<Vec<_>, _>>()?;
+        bn_objects_input_order = bn_objects_input_order
+            .iter()
+            .map(|bn| rdf_canon::api::relabel_blank_node(bn.as_ref(), &bn_mapping))
+            .collect::<Result<Vec<_>, _>>()?;
     }
 
     let prefixes_sorted = BTreeMap::from_iter(prefixes.clone());

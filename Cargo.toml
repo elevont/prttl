@@ -53,6 +53,7 @@ git-version = "0.3"
 oxiri = { version = "0.2", default-features = false }
 oxrdf = { git = "https://github.com/elevont/oxigraph.git", default-features = false, features = ["rdf-12"] }
 oxttl = { git = "https://github.com/elevont/oxigraph.git", default-features = false, features = ["rdf-12"] }
+rdf-canon = { git = "https://github.com/elevont/rdf-canon.git" }
 regex = { version = "1.11", default-features = false }
 thiserror = { version = "2.0", default-features = false }
 tracing = "0.1"
