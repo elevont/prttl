@@ -36,8 +36,16 @@ pub fn named_nodes<'graph>(
 }
 
 #[must_use]
-pub fn blank_nodes(a: &BlankNode, b: &BlankNode) -> Ordering {
-    a.as_str().cmp(b.as_str())
+pub const fn blank_node_refs_by_input_order(
+    _context: &SortingContext<'_>,
+    _a: &BlankNodeRef,
+    _b: &BlankNodeRef,
+) -> Ordering {
+    // By label -> Don't do this!
+    // a.as_str().cmp(b.as_str())
+
+    // Same order as in the input
+    Ordering::Equal
 }
 
 #[must_use]
@@ -49,7 +57,7 @@ pub fn blank_node_refs<'graph>(
     if context.options.prtr_sorting {
         blank_node_refs_with_prtr(context, a, b)
     } else {
-        blank_node_refs_by_label(context, a, b)
+        blank_node_refs_by_input_order(context, a, b)
     }
 }
 
@@ -104,7 +112,7 @@ pub fn blank_node_refs_with_prtr<'graph>(
         (Some(a_sorting_id), Some(b_sorting_id)) => a_sorting_id.cmp(&b_sorting_id),
         (None, Some(_)) => Ordering::Greater,
         (Some(_), None) => Ordering::Less,
-        (None, None) => blank_node_refs_by_label(context, a, b),
+        (None, None) => blank_node_refs_by_input_order(context, a, b),
     }
 }
 
