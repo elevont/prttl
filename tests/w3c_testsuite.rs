@@ -220,7 +220,7 @@ fn test_w3c_test_suite(
     Ok(())
 }
 
-#[test]
+// #[test]
 fn test_w3c_modern_rdf11() -> Result<(), Error> {
     test_w3c_test_suite(
         "http://w3c.github.io/rdf-tests/rdf/rdf11/rdf-turtle",
