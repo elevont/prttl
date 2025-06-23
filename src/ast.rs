@@ -668,7 +668,8 @@ pub struct SortingContext<'sorting> {
     pub options: Rc<FormatOptions>,
     // pub prefixes: &'sorting Vec<(String, String)>,
     pub graph: &'sorting Graph,
-    /// A cache for blank node sorting ids, for performance reasons.
+    /// A cache for blank node sorting ids (`prtr::sortingId`),
+    /// cached for performance reasons.
     pub bn_sorting_ids: Rc<RefCell<HashMap<BlankNodeRef<'sorting>, Option<u32>>>>,
     // See [`FormatOptions::predicate_order`].
     pub predicate_order: HashMap<String, usize>,

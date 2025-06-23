@@ -11,7 +11,9 @@ use oxrdf::NamedOrBlankNodeRef;
 
 pub struct Input {
     pub base: Option<String>,
+    // Prefix to namespace mapping
     pub prefixes: BTreeMap<String, String>,
+    // Namespace to prefix mapping
     pub prefixes_inverted: HashMap<String, String>,
     // Subjects in the order they (first) appear in the input
     pub subjects_in_order: Vec<NamedOrBlankNode>,
