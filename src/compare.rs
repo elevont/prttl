@@ -9,7 +9,7 @@ use crate::{
     },
     vocab::prtr,
 };
-use oxrdf::{vocab::rdf, BlankNode, BlankNodeRef, NamedOrBlankNodeRef, TermRef};
+use oxrdf::{vocab::rdf, BlankNodeRef, NamedOrBlankNodeRef, TermRef};
 use std::{
     cmp::Ordering,
     collections::{hash_map::Entry, HashMap},
@@ -132,6 +132,23 @@ pub fn t_blank_nodes<'graph>(
     b: &TBlankNode<'graph>,
 ) -> Ordering {
     blank_node_refs(context, &a.node.0, &b.node.0)
+}
+
+#[must_use]
+fn t_blank_nodes_by_object_input_order<'graph>(
+    context: &SortingContext<'graph>,
+    a: &TBlankNode<'graph>,
+    b: &TBlankNode<'graph>,
+) -> Ordering {
+    let a_idx = context
+        .bn_objects_input_order
+        .get(&a.node.0.into_owned())
+        .expect("This should always contain all the blank nodes appearing as objects in the graph");
+    let b_idx = context
+        .bn_objects_input_order
+        .get(&b.node.0.into_owned())
+        .expect("This should always contain all the blank nodes appearing as objects in the graph");
+    a_idx.cmp(b_idx)
 }
 
 #[must_use]
@@ -314,7 +331,11 @@ pub fn t_obj<'graph>(
             blank_node_refs(context, a, b)
         }
         (TObject::BlankNodeAnonymous(a), TObject::BlankNodeAnonymous(b)) => {
-            t_blank_nodes(context, a, b)
+            let bn_cmp = t_blank_nodes(context, a, b);
+            if bn_cmp != Ordering::Equal {
+                return bn_cmp;
+            }
+            t_blank_nodes_by_object_input_order(context, a, b)
         }
         (TObject::Collection(a), TObject::Collection(b)) => t_collections(context, a, b),
         (TObject::Literal(a), TObject::Literal(b)) => literals(context, a, b),
