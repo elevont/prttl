@@ -300,6 +300,35 @@ would make them jump around each time the ID changes.
         creating more diff and visual noise,
         and likely merge-conflicts between different (git) branches
 
+    an example, already sorted; note the `prtr:sortingId`:
+
+    ```turtle
+    @prefix prtr: <http://w3id.org/oseg/ont/prtr#> .
+
+    ex:anonymous
+      a schema:Text ;
+      schema:author
+        [
+          prtr:sortingId 2 ;
+          schema:name "Robert Polson" ;
+        ] ;
+      .
+
+    [
+      a schema:Person ;
+      prtr:sortingId 1 ;
+      schema:name "Micha Maloun" ;
+    ] .
+
+    [ prtr:sortingId 100 ] .
+
+    [
+      a schema:Person ;
+      prtr:sortingId 1800 ;
+      schema:name "Jane Doe" ;
+    ] .
+    ```
+
 4. Collection (global)
 
     This is an other approach that introduces new RDF data,
