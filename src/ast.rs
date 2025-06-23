@@ -941,17 +941,6 @@ fn extract_non_empty_collections<'graph>(
     cols
 }
 
-pub fn subjects(graph: &Graph) -> impl Iterator<Item = NamedOrBlankNodeRef<'_>> + '_ {
-    let mut seen = HashSet::new();
-    graph.iter().filter_map(move |triple| {
-        if seen.insert(triple.subject) {
-            Some(triple.subject)
-        } else {
-            None
-        }
-    })
-}
-
 /// Creates the AST for the given input.
 ///
 /// # Errors
@@ -1008,14 +997,14 @@ where
         unreferenced_blank_nodes,
         col_involved_triples: &col_involved_triples.borrow(),
     };
-    for subj in subjects(&input.graph) {
-        if let NamedOrBlankNodeRef::BlankNode(bn) = subj {
+    for subj in &input.subjects_in_order {
+        if let NamedOrBlankNodeRef::BlankNode(bn) = subj.as_ref() {
             if nestable_blank_nodes.contains(&bn) {
                 continue;
             }
         }
         let level_triples = input.graph.triples_for_subject(subj);
-        let mut parent = TSubjectCont::from(&ctx, subj);
+        let mut parent = TSubjectCont::from(&ctx, subj.as_ref());
         parent.create_graph_entry(&ctx, level_triples)?;
         tree_root.subjects.push(parent);
     }

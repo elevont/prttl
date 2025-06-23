@@ -3,7 +3,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use std::{
-    collections::{BTreeMap, HashMap},
+    collections::{BTreeMap, HashMap, HashSet},
     rc::Rc,
 };
 
@@ -116,8 +116,15 @@ pub fn parse(turtle_str: &[u8], options: &Rc<FormatOptions>) -> Result<Input, Er
     parser.end();
     let mut base = None;
     let mut prefixes = HashMap::new();
+    let mut seen_subjects = HashSet::new();
+    let mut subjects_in_order = Vec::new();
     while let Some(triple_res) = parser.parse_next() {
         let triple = triple_res?;
+
+        if seen_subjects.insert(triple.subject.clone()) {
+            subjects_in_order.push(triple.subject.clone());
+        }
+
         graph.insert(&triple);
 
         // validate & store base
@@ -176,6 +183,7 @@ because the 'force' option was specified!"
         base,
         prefixes: prefixes_sorted,
         prefixes_inverted,
+        subjects_in_order,
         graph,
     };
 
