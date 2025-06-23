@@ -120,7 +120,7 @@ fn test_simple_stable() -> Result<(), Error> {
 fn test_simple_strict() -> Result<(), Error> {
     test_auto!(
         "data/input/pretty_printing/simple.ttl",
-        "data/output/pretty_printing/simple.ttl",
+        "data/output/pretty_printing/simple.strict.ttl",
         true,
         true
     )
@@ -128,7 +128,7 @@ fn test_simple_strict() -> Result<(), Error> {
 
 #[test]
 fn test_simple_strict_stable() -> Result<(), Error> {
-    test_auto!("data/output/pretty_printing/simple.ttl", true, true)
+    test_auto!("data/output/pretty_printing/simple.strict.ttl", true, true)
 }
 
 #[test]
