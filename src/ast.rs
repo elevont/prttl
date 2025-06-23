@@ -962,36 +962,38 @@ where
 {
     let col_involved_triples: Rc<RefCell<Vec<TripleRef<'_>>>> = Rc::new(RefCell::new(Vec::new()));
     let non_empty_valid_cols = extract_non_empty_collections(&input.graph, &col_involved_triples);
-    tracing::debug!(
-        "\ncol_involved_triples:\n{}",
-        col_involved_triples
-            .borrow()
-            .iter()
-            .map(|triple| format!(
-                "{} {} {} .",
-                triple.subject, triple.predicate, triple.object
-            )
-            .replace('\n', "\\n"))
-            .collect::<Vec<_>>()
-            .join("\n")
-    );
-    tracing::debug!(
-        "\nnon_empty_valid_cols:\n{}",
-        non_empty_valid_cols
-            .iter()
-            .map(|(bn, terms)| format!(
-                "{} ( {} )",
-                bn,
-                terms
-                    .iter()
-                    .map(|t| format!("{t}").replace('\n', "\\n"))
-                    .collect::<Vec<_>>()
-                    .join(", ")
-            )
-            .replace('\n', "\\n"))
-            .collect::<Vec<_>>()
-            .join("\n")
-    );
+    if tracing::enabled!(tracing::Level::DEBUG) {
+        tracing::debug!(
+            "\ncol_involved_triples:\n{}",
+            col_involved_triples
+                .borrow()
+                .iter()
+                .map(|triple| format!(
+                    "{} {} {} .",
+                    triple.subject, triple.predicate, triple.object
+                )
+                .replace('\n', "\\n"))
+                .collect::<Vec<_>>()
+                .join("\n")
+        );
+        tracing::debug!(
+            "\nnon_empty_valid_cols:\n{}",
+            non_empty_valid_cols
+                .iter()
+                .map(|(bn, terms)| format!(
+                    "{} ( {} )",
+                    bn,
+                    terms
+                        .iter()
+                        .map(|t| format!("{t}").replace('\n', "\\n"))
+                        .collect::<Vec<_>>()
+                        .join(", ")
+                )
+                .replace('\n', "\\n"))
+                .collect::<Vec<_>>()
+                .join("\n")
+        );
+    }
     let nestable_blank_nodes =
         evaluate_nestable_and_unreferenced_blank_nodes(&input.graph, unreferenced_blank_nodes);
 
