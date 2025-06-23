@@ -576,14 +576,8 @@ so we write them as data-typed literals."
         if !matches!(subj_cont.subject, TSubject::BlankNodeAnonymous(_)) {
             self.fmt_predicates(context, &subj_cont.predicates, true)?;
         }
-        if matches!(
-            subj_cont.subject,
-            TSubject::BlankNodeAnonymous(_) | TSubject::Collection(_)
-        ) {
-            if matches!(subj_cont.subject, TSubject::BlankNodeAnonymous(_)) {
-                write!(context.output, " .")?;
-            }
-            writeln!(context.output)?;
+        if matches!(subj_cont.subject, TSubject::BlankNodeAnonymous(_)) {
+            writeln!(context.output, " .")?;
         }
         writeln!(context.output)?;
         Ok(())
@@ -608,7 +602,7 @@ so we write them as data-typed literals."
                 write!(context.output, " ")?;
                 self.fmt_obj(context, predicates_cont.objects.first().unwrap())?;
                 if final_dot {
-                    write!(context.output, " .")?;
+                    writeln!(context.output, " .")?;
                 } else {
                     write!(context.output, " ")?;
                 }
