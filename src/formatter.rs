@@ -2,10 +2,10 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::ast::Part;
+use crate::ast::{self, Part};
 use crate::ast::{
-    construct_tree, SortingContext, TBlankNode, TBlankNodeRef, TCollection, TLiteralRef,
-    TNamedNode, TObject, TPredicateCont, TRoot, TSubject, TSubjectCont, TTriple,
+    SortingContext, TBlankNode, TBlankNodeRef, TCollection, TLiteralRef, TNamedNode, TObject,
+    TPredicateCont, TRoot, TSubject, TSubjectCont, TTriple,
 };
 use crate::constants::SUBSTITUTE_BASE;
 use crate::context::Context;
@@ -79,7 +79,7 @@ impl<'graph> TurtleFormatter<'graph> {
     }
 
     fn construct_tree(&mut self) {
-        construct_tree(
+        ast::construct_tree(
             &mut self.tree,
             &mut self.unreferenced_blank_nodes,
             self.input,
