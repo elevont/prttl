@@ -13,6 +13,7 @@ use std::sync::LazyLock;
 
 use oxrdf::vocab::rdf;
 use oxrdf::vocab::xsd;
+use oxrdf::BlankNode;
 use oxrdf::BlankNodeRef;
 use oxrdf::Graph;
 use oxrdf::LiteralRef;
@@ -671,6 +672,8 @@ pub struct SortingContext<'sorting> {
     /// A cache for blank node sorting ids (`prtr::sortingId`),
     /// cached for performance reasons.
     pub bn_sorting_ids: Rc<RefCell<HashMap<BlankNodeRef<'sorting>, Option<u32>>>>,
+    // Blank node objects in the order they (first) appear in the input
+    pub bn_objects_input_order: HashMap<BlankNode, usize>,
     // See [`FormatOptions::predicate_order`].
     pub predicate_order: HashMap<String, usize>,
     // See [`FormatOptions::subject_type_order`].

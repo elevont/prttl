@@ -118,11 +118,21 @@ pub fn parse(turtle_str: &[u8], options: &Rc<FormatOptions>) -> Result<Input, Er
     let mut prefixes = HashMap::new();
     let mut seen_subjects = HashSet::new();
     let mut subjects_in_order = Vec::new();
+    let mut seen_bn_objects = HashSet::new();
+    let mut bn_objects_input_order = Vec::new();
     while let Some(triple_res) = parser.parse_next() {
         let triple = triple_res?;
 
         if seen_subjects.insert(triple.subject.clone()) {
             subjects_in_order.push(triple.subject.clone());
+        }
+
+        // NOTE We do the ref and then into_owned again,
+        //      because this way we do not clone all the (potentially huge) objects.
+        if let TermRef::BlankNode(bn) = triple.object.as_ref() {
+            if seen_bn_objects.insert(bn.into_owned()) {
+                bn_objects_input_order.push(bn.into_owned());
+            }
         }
 
         graph.insert(&triple);
@@ -184,6 +194,7 @@ because the 'force' option was specified!"
         prefixes: prefixes_sorted,
         prefixes_inverted,
         subjects_in_order,
+        bn_objects_input_order,
         graph,
     };
 

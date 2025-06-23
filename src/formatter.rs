@@ -91,6 +91,13 @@ impl<'graph> TurtleFormatter<'graph> {
             options: Rc::<_>::clone(&self.options),
             graph: &self.input.graph,
             bn_sorting_ids: Rc::new(RefCell::new(HashMap::new())),
+            bn_objects_input_order: self
+                .input
+                .bn_objects_input_order
+                .iter()
+                .enumerate()
+                .map(|(idx, val)| (val.clone(), idx))
+                .collect(),
             predicate_order: self
                 .options
                 .predicate_order()
