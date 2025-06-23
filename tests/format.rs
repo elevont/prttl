@@ -1,4 +1,5 @@
 // SPDX-FileCopyrightText: 2023 Helsing GmbH
+// SPDX-FileCopyrightText: 2025 Robin Vobruba <hoijui.quaero@gmail.com>
 //
 // SPDX-License-Identifier: Apache-2.0
 
