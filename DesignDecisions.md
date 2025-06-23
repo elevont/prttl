@@ -636,7 +636,7 @@ Thus, _max nested_ wins in all regards,
 and is therefore what we use,
 without even the option to choose _max labelled_.
 
-### "Mid" Decisions
+### Intermediate Decisions
 
 #### Sorting - Special Predicates
 
