@@ -167,8 +167,9 @@ impl Part for TSubjectCont<'_> {
 
     fn is_single_leafed(&self) -> bool {
         self.subject.is_single_leafed()
-            && self.predicates.len() == 1
-            && self.predicates.first().unwrap().is_single_leafed()
+            && (self.predicates.is_empty() // NOTE This is most likely not required, but does not cost much and does not hurt.
+            || (self.predicates.len() == 1
+            && self.predicates.first().unwrap().is_single_leafed()))
     }
 }
 
@@ -661,7 +662,8 @@ impl Part for TBlankNode<'_> {
     }
 
     fn is_single_leafed(&self) -> bool {
-        self.predicates.len() == 1 && self.predicates.first().unwrap().is_single_leafed()
+        self.predicates.is_empty()
+            || (self.predicates.len() == 1 && self.predicates.first().unwrap().is_single_leafed())
     }
 }
 
