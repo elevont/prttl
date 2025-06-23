@@ -41,7 +41,8 @@ fn test_format(
     fmt_options: FormatOptions,
 ) -> Result<(), Error> {
     let output = format_turtle(input, fmt_options)?;
-    let debug_file_abs = std::path::absolute(format!("target/tests/{}", debug_file.display())).unwrap();
+    let debug_file_abs =
+        std::path::absolute(format!("target/tests/{}", debug_file.display())).unwrap();
     std::fs::create_dir_all(debug_file_abs.parent().unwrap()).unwrap();
     if output != expected {
         std::fs::write(debug_file_abs, &output).unwrap();
@@ -82,6 +83,7 @@ macro_rules! test_auto {
                 if $single_object_on_new_line {
                     fmt_options.single_leafed_new_lines = true;
                 }
+                fmt_options.force = true;
                 fmt_options.canonicalize = false;
                 fmt_options
             },
