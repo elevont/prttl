@@ -642,8 +642,6 @@ without even the option to choose _max labelled_.
 
 tags: sorting
 
-TODO priority: _need-to-have_
-
 Currently, we sort `a` (aka `rdf:type`) at the top,
 then prefixed named nodes in alphabetic order,
 then non-prefixed(/by IRI) named nodes.
@@ -949,8 +947,6 @@ with an option to use the SPARQL one.
 
 #### Multi-Line Quoting
 
-TODO tag: _must-have_
-
 tags: strings
 
 Whether/when to use triple-quotes for multi-line strings?
@@ -1001,8 +997,6 @@ tags: strings
 
 Whether, when and how to use triple quoted strings for quoting
 if there are no new lines.
-
-TODO tag: _nice-to-have_
 
 ```turtle
  <s>
