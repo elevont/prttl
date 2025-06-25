@@ -473,13 +473,15 @@ impl<'graph> TurtleFormatter<'graph> {
         f.write_str("\"\"\"")
     }
 
-    fn fmt_string<W: Write>(context: &mut Context<W>, value: &'graph str) -> FmtResult<()> {
-        // NOTE We need to use quoted for strings containing "\n\r",
-        //      because they can not be represented in triple-quoted strings.
-        if value.contains('\n') && !value.contains("\n\r") {
-            Self::print_unquoted_str(value, &mut context.output)?;
-        } else {
+    fn fmt_string<W: Write>(
+        context: &mut Context<W>,
+        str_literal: &TLiteralRef<'graph>,
+    ) -> FmtResult<()> {
+        let value = str_literal.0.value();
+        if str_literal.is_single_leafed() {
             Self::print_quoted_str(value, &mut context.output)?;
+        } else {
+            Self::print_unquoted_str(value, &mut context.output)?;
         }
         Ok(())
     }
@@ -491,9 +493,9 @@ impl<'graph> TurtleFormatter<'graph> {
     ) -> FmtResult<()> {
         self.write_indent(context)?;
         match literal.0.datatype() {
-            xsd::STRING => Self::fmt_string(context, literal.0.value())?,
+            xsd::STRING => Self::fmt_string(context, literal)?,
             rdf::LANG_STRING => {
-                Self::fmt_string(context, literal.0.value())?;
+                Self::fmt_string(context, literal)?;
                 write!(context.output, "@")?;
                 write!(
                     context.output,

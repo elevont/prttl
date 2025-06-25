@@ -378,7 +378,26 @@ impl Part for TLiteralRef<'_> {
         true
     }
 
+    /// The only literal we format onto multiple lines,
+    /// is a string or language-tagged string with multiple lines.
+    ///
+    /// This function checks for that case.
+    /// There is an exception though:
+    /// Multi-line strings with the sequence "\n\r" in them,
+    /// will be formatted on a single line,
+    /// because this sequence can not be represented properly on multiple lines.
     fn is_single_leafed(&self) -> bool {
+        match self.0.datatype() {
+            xsd::STRING | rdf::LANG_STRING => {
+                let value = self.0.value();
+                // NOTE We need to use normally quoted/escaped syntax for strings containing "\n\r",
+                //      because they can not be represented in triple-quoted strings.
+                if value.contains('\n') && !value.contains("\n\r") {
+                    return false;
+                }
+            }
+            _ => (),
+        }
         true
     }
 }
