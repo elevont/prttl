@@ -581,6 +581,7 @@ so we write them as data-typed literals."
         context: &mut Context<W>,
         subj_cont: &TSubjectCont<'graph>,
     ) -> FmtResult<()> {
+        writeln!(context.output)?;
         self.fmt_subj(context, &subj_cont.subject)?;
         if !matches!(subj_cont.subject, TSubject::BlankNodeAnonymous(_)) {
             self.fmt_predicates(context, &subj_cont.predicates, true)?;
@@ -588,7 +589,6 @@ so we write them as data-typed literals."
         if matches!(subj_cont.subject, TSubject::BlankNodeAnonymous(_)) {
             writeln!(context.output, " .")?;
         }
-        writeln!(context.output)?;
         Ok(())
     }
 
@@ -669,8 +669,6 @@ so we write them as data-typed literals."
         self.fmt_base(context)?;
 
         self.fmt_prefixes(context)?;
-
-        writeln!(context.output)?;
 
         self.fmt_triples(context)?;
         Ok(())
