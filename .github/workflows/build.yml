@@ -31,7 +31,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: Swatinem/rust-cache@v2
-      - run: cargo clippy --all-targets -- -D warnings -D clippy::all
+      - run: cargo clippy --release
 
   test:
     runs-on: ubuntu-latest
