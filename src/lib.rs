@@ -4,7 +4,7 @@
 
 use crate::error::{Error, FilesListErrorType};
 use crate::{formatter::format, options::FormatOptions};
-use diffy::{create_patch, PatchFormatter};
+use diffy::{PatchFormatter, create_patch};
 use std::ffi::OsStr;
 use std::fs;
 use std::path::{Path, PathBuf};

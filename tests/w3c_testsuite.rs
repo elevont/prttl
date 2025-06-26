@@ -44,7 +44,9 @@ pub enum Error {
     #[error("No action for test subject {0}")]
     NoAction(String),
 
-    #[error("The formatted graph for subject '{0}' is not the same as the expected graph.\nOriginal:\n'{1}'\n\nFormatted:\n'{2}'")]
+    #[error(
+        "The formatted graph for subject '{0}' is not the same as the expected graph.\nOriginal:\n'{1}'\n\nFormatted:\n'{2}'"
+    )]
     DiffersFromExpected(String, Graph, Graph),
 
     #[error(
@@ -52,7 +54,9 @@ pub enum Error {
     )]
     UnstableFormatting(String, String, String),
 
-    #[error("The content for subject '{0}' has been parsed without error, even though it should fail!\nContent:\n'{1}'")]
+    #[error(
+        "The content for subject '{0}' has been parsed without error, even though it should fail!\nContent:\n'{1}'"
+    )]
     FalsePositive(String, String),
 
     #[error("Failed to parse content as turtle: {0}\ncontent:\n'{1}'")]

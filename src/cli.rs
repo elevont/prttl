@@ -4,7 +4,7 @@
 
 use std::{path::PathBuf, sync::LazyLock};
 
-use clap::{command, crate_name, value_parser, Arg, ArgAction, Command, ValueHint};
+use clap::{Arg, ArgAction, Command, ValueHint, command, crate_name, value_parser};
 use cli_utils::logging;
 use const_format::formatcp;
 use prttl::options::{FormatOptions, SpecialPredicateOrder, SpecialSubjectTypeOrder};

@@ -11,8 +11,6 @@ use std::hash::Hash;
 use std::rc::Rc;
 use std::sync::LazyLock;
 
-use oxrdf::vocab::rdf;
-use oxrdf::vocab::xsd;
 use oxrdf::BlankNode;
 use oxrdf::BlankNodeRef;
 use oxrdf::Graph;
@@ -21,6 +19,8 @@ use oxrdf::NamedNodeRef;
 use oxrdf::NamedOrBlankNodeRef;
 use oxrdf::TermRef;
 use oxrdf::TripleRef;
+use oxrdf::vocab::rdf;
+use oxrdf::vocab::xsd;
 
 use crate::compare;
 use crate::input::Input;
@@ -88,7 +88,9 @@ impl<'us, 'graph> TSubject<'graph> {
                     Some(TBlankNodeOrCollection::Collection(col)) => Self::Collection(col),
                     None => {
                         if ctx.unreferenced_blank_nodes.contains(&blank_node_ref) {
-                            panic!("There should never be a labelled blank node that is unreferenced (should be anonymous) -> programer error!");
+                            panic!(
+                                "There should never be a labelled blank node that is unreferenced (should be anonymous) -> programer error!"
+                            );
                         } else {
                             Self::BlankNodeLabel(TBlankNodeRef(blank_node_ref))
                         }

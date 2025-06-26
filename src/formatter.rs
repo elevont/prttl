@@ -14,7 +14,7 @@ use crate::error::FmtResult;
 use crate::options::FormatOptions;
 use oxiri::IriParseError;
 use oxrdf::NamedNode;
-use oxrdf::{vocab::rdf, vocab::xsd, BlankNodeRef, NamedNodeRef};
+use oxrdf::{BlankNodeRef, NamedNodeRef, vocab::rdf, vocab::xsd};
 use regex::Regex;
 use std::cell::RefCell;
 use std::collections::{HashMap, HashSet};

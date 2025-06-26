@@ -9,10 +9,10 @@ use crate::{
     },
     vocab::prtr,
 };
-use oxrdf::{vocab::rdf, BlankNodeRef, NamedOrBlankNodeRef, TermRef};
+use oxrdf::{BlankNodeRef, NamedOrBlankNodeRef, TermRef, vocab::rdf};
 use std::{
     cmp::Ordering,
-    collections::{hash_map::Entry, HashMap},
+    collections::{HashMap, hash_map::Entry},
 };
 
 #[must_use]
