@@ -37,6 +37,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          submodules: recursive
       - uses: Swatinem/rust-cache@v2
       - uses: actions/cache@v4
         with:
@@ -50,6 +52,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          submodules: recursive
       - run: rustup override set 1.81.0
       - uses: Swatinem/rust-cache@v2
       - uses: actions/cache@v4
