@@ -735,13 +735,13 @@ impl<'graph> TRoot<'graph> {
 
     fn sort_subject(subject: &mut TSubject<'graph>, context: &SortingContext<'graph>) {
         match subject {
-            TSubject::Collection(TCollection::WithContent(ref mut collection)) => {
+            TSubject::Collection(TCollection::WithContent(collection)) => {
                 Self::sort_collection_ref(collection, context);
             }
-            TSubject::BlankNodeAnonymous(ref mut blank_node) => {
+            TSubject::BlankNodeAnonymous(blank_node) => {
                 Self::sort_blank_node(blank_node, context);
             }
-            TSubject::Triple(ref mut triple_box) => {
+            TSubject::Triple(triple_box) => {
                 Self::sort_triple(triple_box, context);
             }
             // NOTE We need not sort BlankNodeLabel here,
@@ -762,13 +762,13 @@ impl<'graph> TRoot<'graph> {
 
     fn sort_object(object: &mut TObject<'graph>, context: &SortingContext<'graph>) {
         match object {
-            TObject::Collection(TCollection::WithContent(ref mut collection)) => {
+            TObject::Collection(TCollection::WithContent(collection)) => {
                 Self::sort_collection_ref(collection, context);
             }
-            TObject::BlankNodeAnonymous(ref mut blank_node) => {
+            TObject::BlankNodeAnonymous(blank_node) => {
                 Self::sort_blank_node(blank_node, context);
             }
-            TObject::Triple(ref mut triple_box) => {
+            TObject::Triple(triple_box) => {
                 Self::sort_triple(triple_box, context);
             }
             // NOTE We need not sort BlankNodeLabel here,
