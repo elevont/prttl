@@ -9,6 +9,7 @@ use clap::ValueEnum;
 static CLS_ORDER_OWL: LazyLock<Vec<&'static str>> = LazyLock::new(|| {
     vec![
         "owl:Ontology",
+        "ods:Dataset",
         "owl:Class",
         "owl:ObjectProperty",
         "owl:DatatypeProperty",
