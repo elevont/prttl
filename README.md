@@ -34,6 +34,10 @@ for [RDF Turtle](https://www.w3.org/TR/turtle/).
 It is optimized for diff minimization,
 which is of value when developing Turtle (e.g. an Ontology) in a git repo.
 
+> **NOTE** \
+> If you are comparing this to other Turtle pretty printers,
+> you probably want to have a look at our [design decisions].
+
 ## Installation
 
 It is distributed on [Crates.io](https://crates.io/crates/prttl),
@@ -197,4 +201,6 @@ Options:
 - Uses `a` for `rdf:type` where possible.
 
 A much more detailed account and reasoning behind what this tool does
-can be found in [DesignDecisions.md](DesignDecisions.md).
+can be found in [design decisions].
+
+[design decisions]: DesignDecisions.md
