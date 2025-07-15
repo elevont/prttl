@@ -26,8 +26,8 @@ SPDX-License-Identifier: Apache-2.0
     https://deps.rs/repo/codeberg.org/elevont/prttl/status.svg)](
     https://deps.rs/repo/codeberg.org/elevont/prttl)
 [![Build Status](
-    https://codeberg.org/elevont/prttl/workflows/build/badge.svg)](
-    https://codeberg.org/elevont/prttl/actions)
+    https://github.com/elevont/prttl/workflows/build/badge.svg)](
+    https://github.com/elevont/prttl/actions)
 
 `prttl` is an auto formatter (aka pretty printer)
 for [RDF Turtle](https://www.w3.org/TR/turtle/).
