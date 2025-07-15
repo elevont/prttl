@@ -692,8 +692,6 @@ We decided to go with both 2. and 3. in this matter.
 
 tags: blank-nodes, sorting, prtr
 
-TODO tag: _should-have_
-
 Whether to automatically insert `prtr:sortingId`
 for blank nodes that do not yet have such an ID.
 
