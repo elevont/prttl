@@ -768,9 +768,10 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "54b4ed3a7192fa19f5f48f99871f2755047fabefd7f222f12a1df1773796a102"
 
 [[package]]
-name = "oxrdf"
-version = "0.3.0-dev"
-source = "git+https://github.com/elevont/oxigraph.git#9fa1b2802b0cb9e654a16d0b2cd647ba0f164d25"
+name = "oxrdf_elevont"
+version = "0.3.0-beta.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "8a69172d0d408b0087a215392aa4bee783dfa4883ce7e6f526dcb114b88c9145"
 dependencies = [
  "oxilangtag",
  "oxiri",
@@ -779,14 +780,15 @@ dependencies = [
 ]
 
 [[package]]
-name = "oxttl"
-version = "0.2.0-dev"
-source = "git+https://github.com/elevont/oxigraph.git#9fa1b2802b0cb9e654a16d0b2cd647ba0f164d25"
+name = "oxttl_elevont"
+version = "0.2.0-beta.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "584696bc375668d79a00bbf5e2e3f9b3a36491104f5a31f71d1cc7b3b3c66ee0"
 dependencies = [
  "memchr",
  "oxilangtag",
  "oxiri",
- "oxrdf",
+ "oxrdf_elevont",
  "thiserror",
 ]
 
@@ -846,10 +848,10 @@ dependencies = [
  "diffy",
  "git-version",
  "oxiri",
- "oxrdf",
- "oxttl",
+ "oxrdf_elevont",
+ "oxttl_elevont",
  "pretty_assertions",
- "rdf-canon",
+ "rdf-canon-elevont",
  "regex",
  "reqwest",
  "thiserror",
@@ -897,14 +899,15 @@ dependencies = [
 ]
 
 [[package]]
-name = "rdf-canon"
+name = "rdf-canon-elevont"
 version = "0.15.3"
-source = "git+https://github.com/elevont/rdf-canon.git#9add2e61243a66a7c6a61a70dd97a177d0878740"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "4f51659d02af043e8779bc96130ad75406075495c3e8b304efccb8bdafde81e3"
 dependencies = [
  "base16ct",
  "digest",
  "itertools",
- "oxrdf",
+ "oxrdf_elevont",
  "sha2",
  "thiserror",
  "tracing",
