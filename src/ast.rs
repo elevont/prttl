@@ -22,6 +22,7 @@ use oxrdf::TripleRef;
 use oxrdf::vocab::rdf;
 use oxrdf::vocab::xsd;
 
+use crate::bn_sorting_ids::Cache as BNSortingIdsCache;
 use crate::compare;
 use crate::input::Input;
 use crate::options::FormatOptions;
@@ -694,7 +695,7 @@ pub struct SortingContext<'sorting> {
     pub graph: &'sorting Graph,
     /// A cache for blank node sorting ids (`prtr::sortingId`),
     /// cached for performance reasons.
-    pub bn_sorting_ids: Rc<RefCell<HashMap<BlankNodeRef<'sorting>, Option<u32>>>>,
+    pub bn_sorting_ids: Rc<RefCell<BNSortingIdsCache<'sorting>>>,
     // Blank node objects in the order they (first) appear in the input
     pub bn_objects_input_order: HashMap<BlankNode, usize>,
     // See [`FormatOptions::predicate_order`].
@@ -976,13 +977,13 @@ fn extract_non_empty_collections<'graph>(
 pub fn construct_tree<'tree, 'graph, S: ::std::hash::BuildHasher>(
     tree_root: &'tree mut TRoot<'graph>,
     unreferenced_blank_nodes: &'tree mut HashSet<BlankNodeRef<'graph>, S>,
+    col_involved_triples: &Rc<RefCell<Vec<TripleRef<'graph>>>>,
     input: &'graph Input,
 ) -> Result<(), Infallible>
 where
     'graph: 'tree,
 {
-    let col_involved_triples: Rc<RefCell<Vec<TripleRef<'_>>>> = Rc::new(RefCell::new(Vec::new()));
-    let non_empty_valid_cols = extract_non_empty_collections(&input.graph, &col_involved_triples);
+    let non_empty_valid_cols = extract_non_empty_collections(&input.graph, col_involved_triples);
     if tracing::enabled!(tracing::Level::DEBUG) {
         tracing::debug!(
             "\ncol_involved_triples:\n{}",

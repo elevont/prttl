@@ -17,6 +17,8 @@ pub const A_L_CHECK: &str = "check";
 pub const A_S_CHECK: char = 'c';
 pub const A_L_FORCE: &str = "force";
 pub const A_S_FORCE: char = 'f';
+pub const A_L_GENERATE_PRTR_SORTING_IDS: &str = "generate-sorting-ids";
+pub const A_S_GENERATE_PRTR_SORTING_IDS: char = 'g';
 pub const A_L_INDENTATION: &str = "indentation";
 pub const A_S_INDENTATION: char = 'i';
 // pub const A_L_INPUT: &str = "input";
@@ -29,6 +31,7 @@ pub const A_L_NO_SPARQL_SYNTAX: &str = "no-sparql-syntax";
 // pub const A_S_NO_SPARQL_SYNTAX: char = 's';
 pub const A_L_PREDICATE_ORDER: &str = "pred-order";
 pub const A_L_PREDICATE_ORDER_PRESET: &str = "pred-order-preset";
+pub const A_L_PRIORITIZE_INPUT_ORDER: &str = "prioritize-input-order";
 pub const A_L_SINGLE_LEAFED_NEW_LINES: &str = "single-leafed-new-lines";
 pub const A_S_SINGLE_LEAFED_NEW_LINES: char = 'n';
 pub const A_L_SUBJECT_TYPE_ORDER: &str = "subj-type-order";
@@ -85,6 +88,17 @@ being equal",
         .action(ArgAction::SetTrue)
         .short(A_S_FORCE)
         .long(A_L_FORCE)
+}
+
+fn arg_generate_sorting_ids() -> Arg {
+    Arg::new(A_L_GENERATE_PRTR_SORTING_IDS)
+        .help(
+            "Whether to extend the parsed data with `prtr:sortingId`s for blank nodes \
+that do not yet have one assigned",
+        )
+        .action(ArgAction::SetTrue)
+        .short(A_S_GENERATE_PRTR_SORTING_IDS)
+        .long(A_L_GENERATE_PRTR_SORTING_IDS)
 }
 
 fn arg_label_all_blank_nodes() -> Arg {
@@ -211,6 +225,40 @@ Only direct matches are considered; meaning: No type inference is conducted.",
         .action(ArgAction::Set)
 }
 
+fn arg_prioritize_input_order() -> Arg {
+    Arg::new(A_L_PRIORITIZE_INPUT_ORDER)
+        .help("Prioritize maintaining the input order vs keeping already assigned sorting IDs")
+        .long_help(
+            "Prioritize maintaining the input order vs keeping already assigned sorting IDs.
+
+If we are to generate `prtr:sortingId` values for blank nodes
+that do not yet have one but need one (see [`Self::generate_sorting_ids`],
+how should we do it?
+
+1. If `prioritize_input_order = true`,
+    we will ensure `prtr:sortingId` values are assigned in the order
+    the blank nodes appear in the input.
+    This means, we will also potentially assign different values
+    to blank nodes that already have a `prtr:sortingId` value.
+    This on the other hand, may make the result less compatible with
+    other versions/branches of the same file,
+    that do not have this (same) reassignment.
+
+    We suggest to only choose this if the order your nodes are in
+    within the input is more important to you
+    then to keep the already assigned sorting IDs.
+    or if a scenario of merging conflicts
+    with other versions of the file is very unlikely.
+2. If `prioritize_input_order = false`,
+   already assigned sorting IDs will be preserved to 100%,
+   and the blank nodes without ID will only remain
+   within the same order as in the input,
+   if there are enough free IDs between the already assigned ones.",
+        )
+        .action(ArgAction::SetTrue)
+        .long(A_L_PRIORITIZE_INPUT_ORDER)
+}
+
 fn arg_single_entry_on_new_line() -> Arg {
     Arg::new(A_L_SINGLE_LEAFED_NEW_LINES)
         .help("Whether to move a single/lone predicate-object pair or object alone onto a new line")
@@ -315,6 +363,7 @@ More about this: \
         .arg(arg_canonicalize())
         .arg(arg_check())
         .arg(arg_force())
+        .arg(arg_generate_sorting_ids())
         .arg(arg_label_all_blank_nodes())
         .arg(arg_indentation())
         // .arg(arg_input())
@@ -323,6 +372,7 @@ More about this: \
         .arg(arg_no_sparql_syntax())
         .arg(arg_predicate_order())
         .arg(arg_predicate_order_preset())
+        .arg(arg_prioritize_input_order())
         .arg(arg_single_entry_on_new_line())
         .arg(arg_subject_type_order())
         .arg(arg_subject_type_order_preset())
@@ -373,6 +423,8 @@ pub fn init() -> Result<(FormatOptions, Vec<PathBuf>), InitError> {
     let canonicalize = args.get_flag(A_L_CANONICALIZE);
     let check = args.get_flag(A_L_CHECK);
     let force = args.get_flag(A_L_FORCE);
+    let generate_sorting_ids = args.get_flag(A_L_GENERATE_PRTR_SORTING_IDS);
+    let prioritize_input_order = args.get_flag(A_L_PRIORITIZE_INPUT_ORDER);
     let indentation_spaces = args
         .get_one::<u8>(A_L_INDENTATION)
         .copied()
@@ -409,6 +461,8 @@ pub fn init() -> Result<(FormatOptions, Vec<PathBuf>), InitError> {
             indentation,
             single_leafed_new_lines,
             force,
+            generate_sorting_ids,
+            prioritize_input_order,
             prtr_sorting,
             sparql_syntax,
             max_nesting,

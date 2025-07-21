@@ -13,15 +13,16 @@ use crate::error::Error;
 use crate::error::FmtResult;
 use crate::options::FormatOptions;
 use oxiri::IriParseError;
-use oxrdf::NamedNode;
 use oxrdf::{BlankNodeRef, NamedNodeRef, vocab::rdf, vocab::xsd};
+use oxrdf::{NamedNode, TripleRef};
 use regex::Regex;
 use std::cell::RefCell;
-use std::collections::{HashMap, HashSet};
+use std::collections::HashSet;
 use std::fmt::{self, Write};
 use std::rc::Rc;
 use std::sync::LazyLock;
 
+use crate::bn_sorting_ids::Cache as BNSortingIdsCache;
 use crate::input::Input;
 
 /// The regex to match a DOUBLE from the Turtle grammar,
@@ -43,7 +44,7 @@ pub fn format(input: &Input, options: Rc<FormatOptions>) -> FmtResult<String> {
         output: &mut output,
     };
     let mut formatter = TurtleFormatter::new(input, options);
-    formatter.construct_tree();
+    formatter.construct_tree()?;
     tracing::debug!("{:#?}", formatter.tree);
     formatter.fmt_doc(&mut context)?;
     Ok(output)
@@ -53,6 +54,7 @@ struct TurtleFormatter<'graph> {
     input: &'graph Input,
     options: Rc<FormatOptions>,
     unreferenced_blank_nodes: HashSet<BlankNodeRef<'graph>>,
+    col_involved_triples: Rc<RefCell<Vec<TripleRef<'graph>>>>,
     tree: TRoot<'graph>,
 }
 
@@ -62,6 +64,7 @@ impl<'graph> TurtleFormatter<'graph> {
             input,
             options,
             unreferenced_blank_nodes: HashSet::new(),
+            col_involved_triples: Rc::new(RefCell::new(Vec::new())),
             tree: TRoot::new(),
         }
     }
@@ -78,19 +81,25 @@ impl<'graph> TurtleFormatter<'graph> {
         NamedNode::new(iri_or_name)
     }
 
-    fn construct_tree(&mut self) {
+    fn construct_tree(&mut self) -> Result<(), Error> {
         ast::construct_tree(
             &mut self.tree,
             &mut self.unreferenced_blank_nodes,
+            &self.col_involved_triples,
             self.input,
         )
         .map_err(|err| Error::FailedToCreateTurtleStructure(err.to_string()))
         .unwrap();
 
+        let mut bn_sorting_ids = BNSortingIdsCache::new(self.input, Rc::<_>::clone(&self.options));
+        if self.options.generate_sorting_ids {
+            bn_sorting_ids.ensure_sorting_ids_assigned(&self.col_involved_triples.borrow())?;
+        }
+
         let context = SortingContext {
             options: Rc::<_>::clone(&self.options),
             graph: &self.input.graph,
-            bn_sorting_ids: Rc::new(RefCell::new(HashMap::new())),
+            bn_sorting_ids: Rc::new(RefCell::new(bn_sorting_ids)),
             bn_objects_input_order: self
                 .input
                 .bn_objects_input_order
@@ -129,6 +138,8 @@ impl<'graph> TurtleFormatter<'graph> {
             }),
         };
         self.tree.sort(&context);
+
+        Ok(())
     }
 }
 

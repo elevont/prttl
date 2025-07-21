@@ -390,6 +390,36 @@ pub struct FormatOptions {
     /// Because they will be completely removed in the output,
     /// we require `force = true` to try to avoid unintentional loss of information.
     pub force: bool,
+    /// Whether to generate a `prtr:sortingId` for blank nodes
+    /// that do not yet have one,
+    /// and adding those triples to the RDF content to be printed.
+    pub generate_sorting_ids: bool,
+    /// Prioritize maintaining the input order vs keeping already assigned sorting IDs..
+    ///
+    /// If we are to generate `prtr:sortingId` values for blank nodes
+    /// that do not yet have one but need one (see [`Self::generate_sorting_ids`],
+    /// how should we do it?
+    ///
+    /// 1. If `prioritize_input_order = true`,
+    ///    we will ensure `prtr:sortingId` values are assigned in the order
+    ///    the blank nodes appear in the input.
+    ///    This means, we will also potentially assign different values
+    ///    to blank nodes that already have a `prtr:sortingId` value.
+    ///    This on the other hand, may make the result less compatible with
+    ///    other versions/branches of the same file,
+    ///    that do not have this (same) reassignment.
+    ///
+    ///    We suggest to only choose this if the order your nodes are in
+    ///    within the input is more important to you
+    ///    then to keep the already assigned sorting IDs.
+    ///    or if a scenario of merging conflicts
+    ///    with other versions of the file is very unlikely.
+    /// 2. If `prioritize_input_order = false`,
+    ///    already assigned sorting IDs will be preserved to 100%,
+    ///    and the blank nodes without ID will only remain
+    ///    within the same order as in the input,
+    ///    if there are enough free IDs between the already assigned ones.
+    pub prioritize_input_order: bool,
     /// Sort blank nodes according to their `prtr:sortingId` value.
     ///
     /// [`prtr`](https://codeberg.org/elevont/prtr)
@@ -489,6 +519,8 @@ impl Default for FormatOptions {
             indentation: "  ".to_string(),
             single_leafed_new_lines: false,
             force: false,
+            generate_sorting_ids: false,
+            prioritize_input_order: false,
             prtr_sorting: true,
             sparql_syntax: false,
             max_nesting: true,

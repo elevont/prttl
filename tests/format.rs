@@ -14,6 +14,8 @@ fn fmt_opts_strict(single_object_on_new_line: bool) -> FormatOptions {
         indentation: "  ".to_string(),
         single_leafed_new_lines: single_object_on_new_line,
         force: true,
+        generate_sorting_ids: false,
+        prioritize_input_order: false,
         prtr_sorting: true,
         check: false,
         sparql_syntax: false,

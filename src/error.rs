@@ -2,7 +2,7 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::parser;
+use crate::{bn_sorting_ids, parser};
 use std::path::PathBuf;
 use thiserror::Error;
 
@@ -29,6 +29,9 @@ Consider refactoring the input first."
 
     #[error(transparent)]
     Format(#[from] std::fmt::Error),
+
+    #[error(transparent)]
+    SortingIdGeneration(#[from] bn_sorting_ids::Error),
 
     #[error("The target file to format does not seem to exist: '{0}'")]
     TargetFileDoesNotExist(PathBuf),

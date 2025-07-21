@@ -13,6 +13,7 @@ use std::rc::Rc;
 use git_version::git_version;
 
 pub mod ast;
+pub mod bn_sorting_ids;
 pub mod compare;
 pub mod constants;
 pub mod context;

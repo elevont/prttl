@@ -105,6 +105,8 @@ fn options() -> FormatOptions {
         indentation: "  ".to_string(),
         single_leafed_new_lines: false,
         force: true,
+        generate_sorting_ids: false,
+        prioritize_input_order: false,
         prtr_sorting: false,
         sparql_syntax: false,
         max_nesting: true,

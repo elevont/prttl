@@ -2,18 +2,12 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::{
-    ast::{
-        SortingContext, TBlankNode, TBlankNodeRef, TCollection, TCollectionRef, TLiteralRef,
-        TNamedNode, TObject, TPredicateCont, TSubject, TSubjectCont, TTriple,
-    },
-    vocab::prtr,
+use crate::ast::{
+    SortingContext, TBlankNode, TBlankNodeRef, TCollection, TCollectionRef, TLiteralRef,
+    TNamedNode, TObject, TPredicateCont, TSubject, TSubjectCont, TTriple,
 };
-use oxrdf::{BlankNodeRef, NamedOrBlankNodeRef, TermRef, vocab::rdf};
-use std::{
-    cmp::Ordering,
-    collections::{HashMap, hash_map::Entry},
-};
+use oxrdf::{BlankNodeRef, TermRef, vocab::rdf};
+use std::{cmp::Ordering, collections::HashMap};
 
 #[must_use]
 pub fn named_nodes<'graph>(
@@ -62,51 +56,14 @@ pub fn blank_node_refs<'graph>(
 }
 
 #[must_use]
-fn fetch_prtr_sorting_id<'graph>(
-    context: &SortingContext<'graph>,
-    bn: &BlankNodeRef<'graph>,
-) -> Option<u32> {
-    match context.bn_sorting_ids.borrow_mut().entry(*bn) {
-        Entry::Occupied(entry) => *entry.get(),
-        Entry::Vacant(entry) => {
-            let sorting_id_opt = context
-                .graph
-                .object_for_subject_predicate(
-                    NamedOrBlankNodeRef::BlankNode(*bn),
-                    *prtr::SORTING_ID,
-                )
-                .and_then(|sorting_id_term| {
-                    if let TermRef::Literal(sorting_id_literal) = sorting_id_term {
-                        sorting_id_literal
-                            .value()
-                            .parse()
-                            .map_err(|err| {
-                                tracing::warn!(
-                                    "Failed to parse prtr:sortingId value ('{}') as u32: {err}",
-                                    sorting_id_literal.value()
-                                );
-                                err
-                            })
-                            .ok()
-                    } else {
-                        None
-                    }
-                });
-
-            entry.insert(sorting_id_opt);
-            sorting_id_opt
-        }
-    }
-}
-
-#[must_use]
 pub fn blank_node_refs_with_prtr<'graph>(
     context: &SortingContext<'graph>,
     a: &BlankNodeRef<'graph>,
     b: &BlankNodeRef<'graph>,
 ) -> Ordering {
-    let a_sorting_id_opt = fetch_prtr_sorting_id(context, a);
-    let b_sorting_id_opt = fetch_prtr_sorting_id(context, b);
+    let mut bn_sorting_ids = context.bn_sorting_ids.borrow_mut();
+    let a_sorting_id_opt = bn_sorting_ids.fetch_prtr_sorting_id(a);
+    let b_sorting_id_opt = bn_sorting_ids.fetch_prtr_sorting_id(b);
 
     match (a_sorting_id_opt, b_sorting_id_opt) {
         (Some(a_sorting_id), Some(b_sorting_id)) => a_sorting_id.cmp(&b_sorting_id),
