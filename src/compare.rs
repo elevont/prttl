@@ -175,9 +175,9 @@ fn extract_topmost_sorting_id_by_types<'graph, S: ::std::hash::BuildHasher>(
         .graph
         .objects_for_subject_predicate(*nn.as_named_node_ref(), rdf::TYPE)
         .collect::<Vec<_>>();
-    for typ in types {
-        if let TermRef::NamedNode(typ_nn) = typ {
-            if let Some(cur_sorting_id) = subject_type_order.get(typ_nn.as_str()) {
+    for r#type in types {
+        if let TermRef::NamedNode(type_nn) = r#type {
+            if let Some(cur_sorting_id) = subject_type_order.get(type_nn.as_str()) {
                 if let Some(best) = topmost_sorting_id {
                     if *cur_sorting_id > best {
                         continue;
