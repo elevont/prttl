@@ -47,7 +47,7 @@ pub enum Error {
     #[error(
         "The formatted graph for subject '{0}' is not the same as the expected graph.\nOriginal:\n'{1}'\n\nFormatted:\n'{2}'"
     )]
-    DiffersFromExpected(String, Graph, Graph),
+    DiffersFromExpected(String, Box<Graph>, Box<Graph>),
 
     #[error(
         "The formatting for subject '{0}' is not stable.\nFormatted:\n'{1}'\n\nReformatted:\n'{2}'"
@@ -155,8 +155,8 @@ fn run_test(
             if original_graph != formatted_graph {
                 return Err(Error::DiffersFromExpected(
                     test.to_string(),
-                    original_graph,
-                    formatted_graph,
+                    Box::new(original_graph),
+                    Box::new(formatted_graph),
                 ));
             }
             let reformatted = format_turtle(&formatted, FormatOptions::default())?;
