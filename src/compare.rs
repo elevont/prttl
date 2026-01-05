@@ -7,7 +7,10 @@ use crate::ast::{
     TNamedNode, TObject, TPredicateCont, TSubject, TSubjectCont, TTriple,
 };
 use oxrdf::{BlankNodeRef, TermRef, vocab::rdf};
-use std::{cmp::Ordering, collections::HashMap};
+use std::{
+    cmp::Ordering,
+    collections::{BTreeSet, HashMap},
+};
 
 #[must_use]
 pub fn named_nodes<'graph>(
@@ -165,30 +168,25 @@ pub fn triples<'graph>(
 }
 
 #[must_use]
-fn extract_topmost_sorting_id_by_types<'graph, S: ::std::hash::BuildHasher>(
+fn extract_sorted_order_ids_from_types<'graph, S: ::std::hash::BuildHasher>(
     context: &SortingContext<'graph>,
     subject_type_order: &HashMap<String, usize, S>,
     nn: &TNamedNode<'graph>,
-) -> Option<usize> {
-    let mut topmost_sorting_id = None;
+) -> Vec<usize> {
     let types = context
         .graph
         .objects_for_subject_predicate(*nn.as_named_node_ref(), rdf::TYPE)
         .collect::<Vec<_>>();
+    let mut order_ids = BTreeSet::new();
     for r#type in types {
         if let TermRef::NamedNode(type_nn) = r#type {
             if let Some(cur_sorting_id) = subject_type_order.get(type_nn.as_str()) {
-                if let Some(best) = topmost_sorting_id {
-                    if *cur_sorting_id > best {
-                        continue;
-                    }
-                }
-                topmost_sorting_id = Some(*cur_sorting_id);
+                order_ids.insert(*cur_sorting_id);
             }
         }
     }
-
-    topmost_sorting_id
+    // TODO Cache this result, maybe in SortingContext?
+    order_ids.into_iter().collect()
 }
 
 #[must_use]
@@ -203,20 +201,24 @@ pub fn t_subj<'graph>(
     match (a, b) {
         (TSubject::NamedNode(a), TSubject::NamedNode(b)) => {
             if let Some(subject_type_order) = context.subject_type_order.as_ref() {
-                let a_best_sorting_id =
-                    extract_topmost_sorting_id_by_types(context, subject_type_order, a);
-                let b_best_sorting_id =
-                    extract_topmost_sorting_id_by_types(context, subject_type_order, b);
-                match (a_best_sorting_id, b_best_sorting_id) {
-                    (Some(a), Some(b)) => {
-                        let special_order = a.cmp(&b);
-                        if special_order != Ordering::Equal {
-                            return special_order;
+                let a_order_ids =
+                    extract_sorted_order_ids_from_types(context, subject_type_order, a);
+                let b_order_ids =
+                    extract_sorted_order_ids_from_types(context, subject_type_order, b);
+                let mut a_order_ids_iter = a_order_ids.iter();
+                let mut b_order_ids_iter = b_order_ids.iter();
+                loop {
+                    match (a_order_ids_iter.next(), b_order_ids_iter.next()) {
+                        (Some(a), Some(b)) => {
+                            let special_order = a.cmp(b);
+                            if special_order != Ordering::Equal {
+                                return special_order;
+                            }
                         }
+                        (Some(_a), None) => return Ordering::Less,
+                        (None, Some(_b)) => return Ordering::Greater,
+                        (None, None) => break,
                     }
-                    (Some(_a), None) => return Ordering::Less,
-                    (None, Some(_b)) => return Ordering::Greater,
-                    (None, None) => (),
                 }
             }
             named_nodes(context, a, b)
