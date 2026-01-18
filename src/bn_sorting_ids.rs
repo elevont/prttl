@@ -20,8 +20,8 @@ use crate::vocab::prtr;
 
 type SortingId = u32;
 
-/// A cache for blank node sorting ids (`prtr::sortingId`),
-/// cached for performance reasons.
+/// A cache for blank node sorting ids (`prtr::sortingId`).
+/// We use a cache for performance reasons.
 pub struct Cache<'graph> {
     options: Rc<FormatOptions>,
     input: &'graph Input,
