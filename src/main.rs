@@ -6,17 +6,17 @@ use cli::InitError;
 use prttl::error::Error;
 use std::ffi::OsStr;
 use std::rc::Rc;
-use thiserror::Error;
+use thiserror::Error as ThisError;
 
 mod cli;
 
-#[derive(Error, Debug)]
+#[derive(ThisError, Debug)]
 pub enum CliError {
     #[error("Failed to initialize the CLI tool: {0}")]
     Init(#[from] InitError),
 
     #[error("Failed to run the formatter: {0}")]
-    Format(#[from] prttl::error::Error),
+    Format(#[from] Error),
 }
 
 fn main() -> Result<(), CliError> {
