@@ -17,7 +17,7 @@ readme = "README.md"
 repository = "https://codeberg.org/elevont/prttl"
 homepage = "https://codeberg.org/elevont/prttl"
 rust-version = "1.85.0"
-version = "0.4.0"
+version = "0.4.1"
 
 [lints.rust]
 rust_2021_compatibility = { level = "warn", priority = -1 }
