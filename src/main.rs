@@ -10,13 +10,19 @@ use thiserror::Error as ThisError;
 
 mod cli;
 
-#[derive(ThisError, Debug)]
+#[derive(ThisError)]
 pub enum CliError {
     #[error("Failed to initialize the CLI tool: {0}")]
     Init(#[from] InitError),
 
     #[error("Failed to run the formatter: {0}")]
     Format(#[from] Error),
+}
+
+impl std::fmt::Debug for CliError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{self}")
+    }
 }
 
 fn main() -> Result<(), CliError> {
