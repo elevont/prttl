@@ -75,7 +75,7 @@ prttl MY_DIR
 All the options:
 
 ```bash
-$ prttl
+$ prttl --help
 Takes RDF data as input (commonly a Turtle file), and generates diff optimized RDF/Turtle, using a lot of new-lines. One peculiarity of this tool is, that it removes (Turtle-syntax) comments. We do this, because we believe that all comments should rather be encoded into triples, and we celebrate this in our own data, specifically our ontologies. More about this: <https://codeberg.org/elevont/cmt-ont>
 
 Usage: prttl [OPTIONS] <FILE_OR_DIR>...
