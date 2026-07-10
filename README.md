@@ -48,17 +48,17 @@ before doing that.
 
 ## Usage
 
-To use it:
+To reformat two files:
 
 ```sh
-prttl MY_TURTLE_FILE.ttl
+prttl my_RDF_turtle_file.ttl an_other_one.ttl
 ```
 
-It is also possible to check if formatting of a given file is valid
-according to the formatter using:
+It is also possible to only check if formatting of the given files is valid
+according to the formatter without reformatting:
 
 ```sh
-prttl --check MY_TURTLE_FILE.ttl
+prttl --check my_RDF_turtle_file.ttl an_other_one.ttl
 ```
 
 If the formatting is not valid,
@@ -67,7 +67,9 @@ a patch to properly format the file is written to the standard output.
 It is also possible to check a complete directory (and its subdirectories):
 
 ```sh
-prttl MY_DIR
+prttl my_dir        # recursive - files are searched by prttl internally
+prttl my_dir/**.ttl # recursive - files are searched by the shell
+prttl my_dir/*.ttl  # non-recursive - files are searched by the shell
 ```
 
 ---
